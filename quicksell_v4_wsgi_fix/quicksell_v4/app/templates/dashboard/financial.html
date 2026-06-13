@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'financial' %}
+
+{% block title %}Financeiro — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.75rem; flex-wrap:wrap; }
+
+  .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(175px,1fr)); gap:1rem; margin-bottom:2rem; }
+  .kpi-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.1rem 1.35rem; }
+  .kpi-val  { font-family:var(--font-display); font-weight:800; font-size:1.55rem; line-height:1.1; }
+  .kpi-lbl  { font-size:.74rem; color:var(--muted); margin-top:.2rem; }
+  .kpi-sub  { font-size:.72rem; color:var(--muted); margin-top:.15rem; }
+
+  .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:2rem; }
+  .chart-card h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:1.25rem; }
+  /* OBRIGATORIO: wrapper com height em px — sem isso o Chart.js entra em
+     loop infinito de resize no mobile (responsive:true le altura do pai,
+     pai herda do canvas, canvas cresce, pai cresce, loop). */
+  .chart-wrapper { position:relative; width:100%; height:180px; overflow:hidden; }
+
+  .payments-table { width:100%; border-collapse:collapse; }
+  .payments-table th { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:.55rem 1rem; border-bottom:1px solid var(--border); text-align:left; white-space:nowrap; }
+  .payments-table td { padding:.85rem 1rem; border-bottom:1px solid var(--border); font-size:.87rem; vertical-align:middle; }
+  .payments-table tr:last-child td { border-bottom:none; }
+  .payments-table tr:hover td { background:var(--surface2); }
+
+  .badge { font-size:.68rem; padding:.22rem .6rem; border-radius:99px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  .badge-success { background:#00e5a010; color:var(--accent2); border:1px solid #00e5a030; }
+  .badge-warning { background:#f59e0b10; color:var(--warning); border:1px solid #f59e0b30; }
+  .badge-danger  { background:#ff4d6a10; color:var(--danger);  border:1px solid #ff4d6a30; }
+  .badge-info    { background:#3b82f610; color:#3b82f6;        border:1px solid #3b82f630; }
+
+  .tab-bar { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .tab { font-size:.78rem; padding:.38rem .85rem; border-radius:7px; border:1px solid var(--border); background:var(--surface); color:var(--muted); cursor:pointer; transition:all .15s; }
+  .tab:hover { color:var(--text); border-color:var(--accent); }
+  .tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{#
+  NOTA: as variáveis `approved`, `pending`, `rejected`, `all_payments`
+  são listas de objetos Payment, passadas pela rota financial_dashboard().
+  NÃO usar {{ pending }} diretamente — pode colidir com variáveis de outros
+  escopos (ex: sidebar). Usar nomes descritivos com prefixo pay_.
+
+  CORREÇÃO DO BUG TypeError: 'int' has no len()
+  ─────────────────────────────────────────────
+  Causa: base.html usava `{% set pending = store.pending_orders() %}` (int)
+  na sidebar, sobrescrevendo a variável `pending` (lista) passada pela rota
+  para todo o escopo Jinja2 do template filho.
+
+  Solução dupla aplicada:
+  1. base.html: variável renomeada para `sidebar_pending_count` (int)
+  2. Este template: usa variáveis prefixadas `pay_approved`, `pay_pending`,
+     `pay_rejected` para evitar qualquer colisão futura.
+#}
+
+{# Aliases locais seguros — desacopla do nome genérico "pending" #}
+{% set pay_approved    = approved   if approved   is iterable else [] %}
+{% set pay_pending     = pending    if pending    is iterable else [] %}
+{% set pay_rejected    = rejected   if rejected   is iterable else [] %}
+{% set pay_all         = all_payments if all_payments is iterable else [] %}
+{% set pay_approved_n  = pay_approved  | length %}
+{% set pay_pending_n   = pay_pending   | length %}
+{% set pay_rejected_n  = pay_rejected  | length %}
+{% set pay_all_n       = pay_all       | length %}
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="sep">›</span>
+      <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+      <span class="sep">›</span>
+      <span class="cur">Financeiro</span>
+    </div>
+    <h1>Financeiro</h1>
+    <p class="text-muted" style="font-size:.88rem;margin-top:.25rem;">
+      Pagamentos recebidos via PIX — Mercado Pago
+    </p>
+  </div>
+  <a href="/stores/{{ store.id }}/settings/mercadopago" class="btn btn-ghost btn-sm">
+    ⚙️ Configurar MP
+  </a>
+</div>
+
+<!-- ── KPIs ── -->
+<div class="kpi-grid">
+
+  <div class="kpi-card">
+    <div class="kpi-val" style="color:var(--accent2);">
+      R$ {{ '%.2f'|format(revenue|float) }}
+    </div>
+    <div class="kpi-lbl">Receita aprovada</div>
+    <div class="kpi-sub">
+      {{ pay_approved_n }} pagamento{% if pay_approved_n != 1 %}s{% endif %}
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-val" style="color:var(--warning);">
+      R$ {{ '%.2f'|format(pending_total|float) }}
+    </div>
+    <div class="kpi-lbl">Aguardando pagamento</div>
+    <div class="kpi-sub">
+      {{ pay_pending_n }} PIX pendente{% if pay_pending_n != 1 %}s{% endif %}
+    </div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-val" style="color:var(--danger);">
+      {{ pay_rejected_n }}
+    </div>
+    <div class="kpi-lbl">Recusados / Cancelados</div>
+    <div class="kpi-sub">Não convertidos</div>
+  </div>
+
+  <div class="kpi-card">
+    <div class="kpi-val">{{ pay_all_n }}</div>
+    <div class="kpi-lbl">Total de tentativas</div>
+    {% if pay_all_n > 0 %}
+    <div class="kpi-sub">
+      {{ ((pay_approved_n / pay_all_n) * 100) | round(1) }}% taxa de aprovação
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- ── Gráfico de receita ── -->
+<div class="chart-card">
+  <h3>📈 Receita aprovada — últimos 30 dias</h3>
+  <div class="chart-wrapper">
+    <canvas id="revenueChart"></canvas>
+  </div>
+</div>
+
+<!-- ── Tabela de pagamentos ── -->
+<div class="flex justify-between items-center" style="margin-bottom:.75rem;">
+  <h2 style="font-size:1rem;">Histórico de pagamentos</h2>
+</div>
+
+<div class="tab-bar" id="filterTabs">
+  <button class="tab active"  onclick="filterTable('all', this)">
+    Todos ({{ pay_all_n }})
+  </button>
+  <button class="tab" onclick="filterTable('aprovado', this)">
+    Aprovados ({{ pay_approved_n }})
+  </button>
+  <button class="tab" onclick="filterTable('pendente', this)">
+    Pendentes ({{ pay_pending_n }})
+  </button>
+  <button class="tab" onclick="filterTable('rejected', this)">
+    Outros ({{ pay_rejected_n }})
+  </button>
+</div>
+
+{% if pay_all %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="payments-table">
+    <thead>
+      <tr>
+        <th>Pagamento</th>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Valor</th>
+        <th>Status</th>
+        <th>Data</th>
+        <th style="text-align:right;">Ação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pay_all %}
+      <tr class="payment-row" data-status="{{ p.status }}">
+        <td>
+          <span style="font-family:monospace;font-size:.82rem;color:var(--muted);">
+            {% if p.mp_payment_id %}#{{ p.mp_payment_id[-8:] }}{% else %}—{% endif %}
+          </span>
+        </td>
+        <td>
+          <a href="/stores/{{ store.id }}/orders/{{ p.order_id }}"
+             style="font-weight:600;color:var(--accent);">
+            #{{ '%04d'|format(p.order_id) }}
+          </a>
+        </td>
+        <td>
+          {% if p.order %}
+            <div style="font-weight:500;font-size:.85rem;">{{ p.order.customer_name }}</div>
+            <div style="font-size:.75rem;color:var(--muted);">{{ p.order.customer_email }}</div>
+          {% else %}—{% endif %}
+        </td>
+        <td style="font-weight:700;">R$ {{ '%.2f'|format(p.amount|float) }}</td>
+        <td>
+          <span class="badge badge-{{ p.status_color }}">{{ p.status_label }}</span>
+          {% if not p.webhook_validated %}
+            <span style="font-size:.65rem;color:var(--muted);display:block;margin-top:.2rem;">
+              sem webhook
+            </span>
+          {% endif %}
+        </td>
+        <td style="color:var(--muted);font-size:.82rem;white-space:nowrap;">
+          {{ p.created_at.strftime('%d/%m/%y %H:%M') }}
+        </td>
+        <td style="text-align:right;">
+          <a href="/stores/{{ store.id }}/orders/{{ p.order_id }}"
+             class="btn btn-ghost btn-xs">Ver →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">💳</span>
+  <h3>Nenhum pagamento ainda</h3>
+  <p>Os pagamentos PIX recebidos aparecerão aqui.</p>
+  <a href="/stores/{{ store.id }}/settings/mercadopago" class="btn btn-primary">
+    Configurar Mercado Pago
+  </a>
+</div>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+/* ── Gráfico de receita ── */
+(function () {
+  const ctx = document.getElementById('revenueChart');
+  if (!ctx) return;
+  new Chart(ctx.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels:   {{ chart_labels | tojson }},
+      datasets: [{
+        label:           'Receita (R$)',
+        data:            {{ chart_data  | tojson }},
+        backgroundColor: '#7c5cfc22',
+        borderColor:     '#7c5cfc',
+        borderWidth:     2,
+        borderRadius:    4,
+      }]
+    },
+    options: {
+      // responsive:true + maintainAspectRatio:false SEM wrapper de height fixa
+      // causa loop infinito de resize no mobile — o canvas tenta preencher o
+      // pai, o pai cresce, o canvas recalcula, e assim infinitamente.
+      // Solucao: desligar o resize automatico; o wrapper CSS controla o tamanho.
+      responsive:          true,
+      maintainAspectRatio: true,
+      aspectRatio:         3,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          grid:  { color: '#2a2a3a' },
+          ticks: { color: '#5c5c72', font: { size: 10 } }
+        },
+        y: {
+          grid:  { color: '#2a2a3a' },
+          ticks: {
+            color:    '#5c5c72',
+            font:     { size: 10 },
+            callback: v => 'R$ ' + Number(v).toFixed(0)
+          }
+        }
+      }
+    }
+  });
+})();
+
+/* ── Filtro de tabela ── */
+function filterTable(status, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.payment-row').forEach(row => {
+    const s = row.dataset.status;
+    const REJECTED_STATUSES = ['rejeitado', 'cancelado', 'expirado'];
+    let show;
+    switch (status) {
+      case 'aprovado':  show = s === 'aprovado'; break;
+      case 'pendente':  show = s === 'pendente'; break;
+      case 'rejected':  show = REJECTED_STATUSES.includes(s); break;
+      default:          show = true;
+    }
+    row.style.display = show ? '' : 'none';
+  });
+}
+</script>
+
+{% endblock %}

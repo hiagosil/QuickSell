@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% block title %}Editar {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .style-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 0.4rem; }
+  .style-option { display: none; }
+  .style-label {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.5rem; padding: 1rem 0.5rem; border-radius: 10px;
+    border: 2px solid var(--border); cursor: pointer; transition: all 0.15s;
+    text-align: center; background: var(--surface2);
+  }
+  .style-label:hover { border-color: var(--accent); }
+  .style-option:checked + .style-label { border-color: var(--accent); background: #7c5cfc12; }
+  .style-icon { font-size: 1.6rem; }
+  .style-name { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+  .style-desc { font-size: 0.7rem; color: var(--muted); }
+
+  .color-row { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.5rem; align-items: center; }
+  .color-swatch-opt { display: none; }
+  .color-swatch-label { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; transition: transform 0.15s, border-color 0.15s; }
+  .color-swatch-label:hover { transform: scale(1.1); }
+  .color-swatch-opt:checked + .color-swatch-label { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+  .color-custom-wrap { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 140px; }
+  .color-custom-wrap input[type=color] { width: 34px; height: 34px; border-radius: 50%; border: none; padding: 0; background: none; cursor: pointer; }
+
+  .section-title { font-family: var(--font-display); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+  .danger-zone { border: 1px solid #ff4d6a40; border-radius: var(--radius); padding: 1.25rem 1.5rem; margin-top: 2rem; }
+  .danger-zone h3 { color: var(--danger); margin-bottom: 0.4rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page" style="max-width:640px;">
+  <div style="margin-bottom:2rem;">
+    <a href="/dashboard" class="text-muted" style="font-size:0.85rem; text-decoration:none;">← Voltar ao dashboard</a>
+    <h1 style="margin-top:0.5rem;">Editar loja</h1>
+    <p class="text-muted mt-1" style="font-family:monospace;font-size:0.85rem;">/{{ store.slug }}</p>
+  </div>
+
+  <form action="/stores/{{ store.id }}/edit" method="post">
+
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="section-title">Informações básicas</div>
+
+      <div class="form-group">
+        <label>Nome da loja</label>
+        <input type="text" name="name" value="{{ store.name }}" required maxlength="80" />
+      </div>
+
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea name="description" rows="2">{{ store.description or '' }}</textarea>
+      </div>
+
+      <div class="form-group" style="margin-bottom:0;">
+        <label>Categoria</label>
+        <select name="category">
+          {% set cats = [('','Selecione...'),('moda','👗 Moda & Acessórios'),('eletronicos','📱 Eletrônicos'),('casa','🏠 Casa & Decoração'),('alimentos','🍕 Alimentos & Bebidas'),('beleza','💄 Beleza & Saúde'),('esporte','⚽ Esporte & Lazer'),('outros','📦 Outros')] %}
+          {% for val, label in cats %}
+            <option value="{{ val }}" {% if store.category == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.2rem;">
+      <div class="section-title">Estilo visual</div>
+      <div class="style-grid">
+        {% for s, icon, desc in [('minimalista','⬜','Limpo e elegante'),('dark','🌑','Escuro e sofisticado'),('neon','⚡','Vibrante e moderno')] %}
+        <div>
+          <input class="style-option" type="radio" name="style" id="style-{{ s }}" value="{{ s }}" {% if store.style == s %}checked{% endif %} />
+          <label class="style-label" for="style-{{ s }}">
+            <span class="style-icon">{{ icon }}</span>
+            <span class="style-name">{{ s|capitalize }}</span>
+            <span class="style-desc">{{ desc }}</span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem;">
+      <div class="section-title">Cor principal</div>
+      <div class="color-row">
+        {% for hex, name in [('#7c5cfc','Roxo'),('#00e5a0','Verde'),('#ff4d6a','Vermelho'),('#f59e0b','Âmbar'),('#3b82f6','Azul'),('#ec4899','Rosa'),('#14b8a6','Teal'),('#f97316','Laranja')] %}
+        <div>
+          <input class="color-swatch-opt" type="radio" name="primary_color" id="color-{{ loop.index }}" value="{{ hex }}" {% if store.primary_color == hex %}checked{% endif %} />
+          <label class="color-swatch-label" for="color-{{ loop.index }}" style="background:{{ hex }};" title="{{ name }}"></label>
+        </div>
+        {% endfor %}
+        <div class="color-custom-wrap">
+          <input type="color" id="colorPicker" value="{{ store.primary_color }}" />
+          <input type="text" id="colorHex" value="{{ store.primary_color }}" maxlength="7" style="font-family:monospace;font-size:0.85rem;" />
+        </div>
+      </div>
+      <input type="hidden" name="primary_color_final" id="primary_color_final" value="{{ store.primary_color }}" />
+    </div>
+
+    <div class="form-group">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;text-transform:none;letter-spacing:0;">
+        <input type="checkbox" name="is_active" {% if store.is_active %}checked{% endif %} style="width:auto;" />
+        Loja ativa (visível publicamente)
+      </label>
+    </div>
+
+    <div class="flex gap-1">
+      <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;">Salvar alterações</button>
+      <a href="/dashboard" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+
+  <!-- Danger Zone -->
+  <div class="danger-zone">
+    <h3>Zona de perigo</h3>
+    <p class="text-muted" style="font-size:0.85rem; margin-bottom:1rem;">Esta ação é permanente e remove todos os produtos da loja.</p>
+    <form action="/stores/{{ store.id }}/delete" method="post" onsubmit="return confirm('Tem certeza? Esta ação não pode ser desfeita.')">
+      <button type="submit" class="btn btn-danger btn-sm">Excluir loja permanentemente</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function applyColor(hex) {
+    document.getElementById('colorHex').value = hex;
+    document.getElementById('colorPicker').value = hex;
+    document.getElementById('primary_color_final').value = hex;
+    document.querySelectorAll('input[name="primary_color"]').forEach(r => r.checked = false);
+  }
+  document.querySelectorAll('input[name="primary_color"]').forEach(r => r.addEventListener('change', () => applyColor(r.value)));
+  document.getElementById('colorPicker').addEventListener('input', e => applyColor(e.target.value));
+  document.getElementById('colorHex').addEventListener('input', e => {
+    if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) applyColor(e.target.value);
+  });
+</script>
+{% endblock %}

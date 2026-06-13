@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+{% block title %}Nova Loja — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .create-layout {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 2rem;
+    align-items: start;
+  }
+
+  @media (max-width: 800px) {
+    .create-layout { grid-template-columns: 1fr; }
+    .preview-panel { order: -1; }
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Style picker */
+  .style-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-top: 0.4rem;
+  }
+
+  .style-option { display: none; }
+
+  .style-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem 0.5rem;
+    border-radius: 10px;
+    border: 2px solid var(--border);
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+    background: var(--surface2);
+  }
+
+  .style-label:hover { border-color: var(--accent); }
+
+  .style-option:checked + .style-label {
+    border-color: var(--accent);
+    background: #7c5cfc12;
+  }
+
+  .style-icon { font-size: 1.6rem; }
+  .style-name { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+  .style-desc { font-size: 0.7rem; color: var(--muted); }
+
+  /* Color picker row */
+  .color-row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-top: 0.5rem;
+    align-items: center;
+  }
+
+  .color-swatch-opt { display: none; }
+
+  .color-swatch-label {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid transparent;
+    transition: transform 0.15s, border-color 0.15s;
+  }
+
+  .color-swatch-label:hover { transform: scale(1.1); }
+  .color-swatch-opt:checked + .color-swatch-label { border-color: #fff; box-shadow: 0 0 0 2px var(--accent); }
+
+  .color-custom-wrap { display: flex; align-items: center; gap: 0.5rem; flex: 1; min-width: 140px; }
+  .color-custom-wrap input[type=color] {
+    width: 34px; height: 34px;
+    border-radius: 50%; border: none; padding: 0;
+    background: none; cursor: pointer;
+  }
+  .color-custom-wrap input[type=text] { flex: 1; }
+
+  /* ── Preview panel ── */
+  .preview-panel {
+    position: sticky;
+    top: 80px;
+  }
+
+  .preview-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .preview-bar { height: 6px; transition: background 0.3s; }
+
+  .preview-body { padding: 1.2rem; }
+
+  .preview-store-name {
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    font-weight: 800;
+    margin-bottom: 0.3rem;
+    transition: all 0.2s;
+  }
+
+  .preview-slug { font-size: 0.78rem; color: var(--muted); }
+  .preview-badge { display: inline-block; margin-top: 0.6rem; }
+
+  .preview-mockup {
+    margin-top: 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    font-size: 0.75rem;
+  }
+
+  .mockup-header { padding: 0.5rem 0.75rem; display:flex; align-items:center; gap: 0.4rem; }
+  .mockup-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+  .mockup-url { background: var(--surface2); border-radius: 4px; padding: 0.2rem 0.5rem; color: var(--muted); flex: 1; font-size: 0.7rem; }
+
+  .mockup-body { padding: 0.75rem; }
+  .mockup-hero { height: 60px; border-radius: 6px; margin-bottom: 0.5rem; transition: background 0.3s; }
+  .mockup-products { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+  .mockup-product-card { background: var(--surface2); border-radius: 6px; height: 48px; }
+
+  /* Style themes for preview */
+  .theme-minimalista .mockup-body { background: var(--surface); }
+  .theme-dark .mockup-body { background: #000; }
+  .theme-dark .mockup-header { background: #111; }
+  .theme-dark .mockup-product-card { background: #1a1a1a; }
+  .theme-neon .mockup-body { background: #05001a; }
+  .theme-neon .mockup-header { background: #08002a; }
+  .theme-neon .mockup-product-card { background: #0d003a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page">
+
+  <div style="margin-bottom:2rem;">
+    <a href="/dashboard" class="text-muted" style="font-size:0.85rem; text-decoration:none;">← Voltar</a>
+    <h1 style="margin-top:0.5rem;">Nova loja</h1>
+    <p class="text-muted mt-1">Personalize e crie sua loja em segundos.</p>
+  </div>
+
+  <div class="create-layout">
+
+    <!-- ── FORM ── -->
+    <div>
+      <form action="/create-store" method="post" id="storeForm">
+
+        <!-- Informações básicas -->
+        <div class="card" style="margin-bottom:1.2rem;">
+          <div class="section-title">Informações básicas</div>
+
+          <div class="form-group">
+            <label for="name">Nome da loja *</label>
+            <input type="text" id="name" name="name" placeholder="Ex: Moda Rápida, TechStore..." required maxlength="80" />
+            <div class="form-hint">Será usado para gerar o endereço da sua loja.</div>
+          </div>
+
+          <div class="form-group">
+            <label for="description">Descrição (opcional)</label>
+            <textarea id="description" name="description" rows="2" placeholder="Uma frase sobre o que você vende..."></textarea>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="category">Categoria</label>
+            <select id="category" name="category">
+              <option value="">Selecione...</option>
+              <option value="moda">👗 Moda & Acessórios</option>
+              <option value="eletronicos">📱 Eletrônicos</option>
+              <option value="casa">🏠 Casa & Decoração</option>
+              <option value="alimentos">🍕 Alimentos & Bebidas</option>
+              <option value="beleza">💄 Beleza & Saúde</option>
+              <option value="esporte">⚽ Esporte & Lazer</option>
+              <option value="outros">📦 Outros</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Estilo -->
+        <div class="card" style="margin-bottom:1.2rem;">
+          <div class="section-title">Estilo visual</div>
+
+          <div class="style-grid">
+            <div>
+              <input class="style-option" type="radio" name="style" id="style-minimalista" value="minimalista" checked />
+              <label class="style-label" for="style-minimalista">
+                <span class="style-icon">⬜</span>
+                <span class="style-name">Minimalista</span>
+                <span class="style-desc">Limpo e elegante</span>
+              </label>
+            </div>
+            <div>
+              <input class="style-option" type="radio" name="style" id="style-dark" value="dark" />
+              <label class="style-label" for="style-dark">
+                <span class="style-icon">🌑</span>
+                <span class="style-name">Dark</span>
+                <span class="style-desc">Escuro e sofisticado</span>
+              </label>
+            </div>
+            <div>
+              <input class="style-option" type="radio" name="style" id="style-neon" value="neon" />
+              <label class="style-label" for="style-neon">
+                <span class="style-icon">⚡</span>
+                <span class="style-name">Neon</span>
+                <span class="style-desc">Vibrante e moderno</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cor principal -->
+        <div class="card" style="margin-bottom:1.75rem;">
+          <div class="section-title">Cor principal</div>
+
+          <div class="color-row">
+            {% set presets = [('#7c5cfc','Roxo'),('#00e5a0','Verde'),('#ff4d6a','Vermelho'),('#f59e0b','Âmbar'),('#3b82f6','Azul'),('#ec4899','Rosa'),('#14b8a6','Teal'),('#f97316','Laranja')] %}
+            {% for hex, name in presets %}
+            <div>
+              <input class="color-swatch-opt" type="radio" name="primary_color" id="color-{{ loop.index }}" value="{{ hex }}" {% if loop.first %}checked{% endif %} />
+              <label class="color-swatch-label" for="color-{{ loop.index }}" style="background:{{ hex }};" title="{{ name }}"></label>
+            </div>
+            {% endfor %}
+
+            <!-- Custom color -->
+            <div class="color-custom-wrap">
+              <input type="color" id="colorPicker" value="#7c5cfc" title="Cor personalizada" />
+              <input type="text" id="colorHex" placeholder="#000000" maxlength="7" style="font-family:monospace;font-size:0.85rem;" />
+            </div>
+          </div>
+          <!-- Hidden field that actually gets submitted -->
+          <input type="hidden" name="primary_color_final" id="primary_color_final" value="#7c5cfc" />
+        </div>
+
+        <div class="flex gap-1">
+          <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;">
+            🚀 Criar loja
+          </button>
+          <a href="/dashboard" class="btn btn-outline">Cancelar</a>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- ── PREVIEW ── -->
+    <div class="preview-panel">
+      <p class="section-title" style="margin-bottom:0.75rem;">Prévia em tempo real</p>
+      <div class="preview-card" id="previewCard">
+        <div class="preview-bar" id="previewBar" style="background:#7c5cfc;"></div>
+        <div class="preview-body">
+          <div class="preview-store-name" id="previewName">Minha Loja</div>
+          <div class="preview-slug" id="previewSlug">/minha-loja</div>
+          <div class="preview-badge">
+            <span class="badge badge-minimalista" id="previewBadge">minimalista</span>
+          </div>
+
+          <div class="preview-mockup theme-minimalista" id="previewMockup">
+            <div class="mockup-header" style="background:var(--surface2);">
+              <div class="mockup-dot"></div>
+              <div class="mockup-dot"></div>
+              <div class="mockup-dot"></div>
+              <div class="mockup-url" id="mockupUrl">quicksell.app/minha-loja</div>
+            </div>
+            <div class="mockup-body">
+              <div class="mockup-hero" id="mockupHero" style="background:#7c5cfc22;"></div>
+              <div class="mockup-products">
+                <div class="mockup-product-card"></div>
+                <div class="mockup-product-card"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div style="margin-top:1rem; padding:0.9rem 1.1rem; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);">
+        <p style="font-size:0.78rem; color:var(--muted); line-height:1.6;">
+          💡 <strong style="color:var(--text);">Dica:</strong> Você pode editar tudo depois. Adicione produtos, mude o estilo e personalize sua loja no dashboard.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ── Slugify ──
+  function slugify(text) {
+    return text.toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim('-') || 'minha-loja';
+  }
+
+  // ── Live name → slug preview ──
+  const nameInput = document.getElementById('name');
+  nameInput.addEventListener('input', () => {
+    const val = nameInput.value || 'Minha Loja';
+    const slug = slugify(val);
+    document.getElementById('previewName').textContent = val || 'Minha Loja';
+    document.getElementById('previewSlug').textContent = '/' + slug;
+    document.getElementById('mockupUrl').textContent = 'quicksell.app/' + slug;
+  });
+
+  // ── Style picker ──
+  const styleInputs = document.querySelectorAll('input[name="style"]');
+  const badge = document.getElementById('previewBadge');
+  const mockup = document.getElementById('previewMockup');
+  const themeClasses = { minimalista: 'theme-minimalista', dark: 'theme-dark', neon: 'theme-neon' };
+  const badgeClasses = { minimalista: 'badge-minimalista', dark: 'badge-dark', neon: 'badge-neon' };
+
+  styleInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      const val = input.value;
+      badge.textContent = val;
+      badge.className = 'badge ' + badgeClasses[val];
+      mockup.className = 'preview-mockup ' + themeClasses[val];
+    });
+  });
+
+  // ── Color picker ──
+  let activeColor = '#7c5cfc';
+
+  function applyColor(hex) {
+    activeColor = hex;
+    document.getElementById('previewBar').style.background = hex;
+    document.getElementById('mockupHero').style.background = hex + '22';
+    document.getElementById('colorHex').value = hex;
+    document.getElementById('colorPicker').value = hex;
+    document.getElementById('primary_color_final').value = hex;
+    // Deselect preset swatches
+    document.querySelectorAll('input[name="primary_color"]').forEach(r => r.checked = false);
+  }
+
+  // Preset swatches
+  document.querySelectorAll('input[name="primary_color"]').forEach(r => {
+    r.addEventListener('change', () => applyColor(r.value));
+  });
+
+  // Native color picker
+  document.getElementById('colorPicker').addEventListener('input', e => applyColor(e.target.value));
+
+  // Hex text input
+  document.getElementById('colorHex').addEventListener('input', e => {
+    const hex = e.target.value.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(hex)) applyColor(hex);
+  });
+</script>
+{% endblock %}

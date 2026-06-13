@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout — {{ store.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root { --accent:{{ store.primary_color }};--bg:#fff;--surface:#f7f7f7;--border:#e8e8e8;--text:#111;--muted:#888;--radius:12px; }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); font-size:15px; line-height:1.6; }
+    a { color:var(--accent); }
+    header { height:60px; padding:0 clamp(1rem,4vw,2.5rem); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); }
+    .logo { font-size:1.05rem; font-weight:800; color:var(--text); text-decoration:none; }
+    .logo span { color:var(--accent); }
+    .secure-badge { font-size:.75rem; color:var(--muted); display:flex; align-items:center; gap:.35rem; }
+
+    main { max-width:1000px; margin:0 auto; padding:2.5rem clamp(1rem,4vw,2rem) 5rem; }
+
+    .steps { display:flex; align-items:center; gap:.5rem; margin-bottom:2.5rem; font-size:.78rem; color:var(--muted); }
+    .step { display:flex; align-items:center; gap:.35rem; }
+    .step-num { width:22px; height:22px; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; }
+    .step.active .step-num { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .step.active { color:var(--text); font-weight:600; }
+    .step-sep { color:var(--border); }
+
+    .checkout-grid { display:grid; grid-template-columns:1fr 340px; gap:2.5rem; }
+    @media(max-width:720px) { .checkout-grid { grid-template-columns:1fr; } }
+
+    /* Form */
+    .section-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.25rem; }
+    .section-card h2 { font-size:.88rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:1.25rem; display:flex; align-items:center; gap:.5rem; }
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:.85rem; }
+    .form-grid .full { grid-column:1/-1; }
+    @media(max-width:500px) { .form-grid { grid-template-columns:1fr; } .form-grid .full { grid-column:1; } }
+
+    label { display:block; font-size:.73rem; color:var(--muted); margin-bottom:.3rem; text-transform:uppercase; letter-spacing:.04em; }
+    input, select { width:100%; background:#fff; border:1px solid var(--border); border-radius:8px; color:var(--text); padding:.65rem .85rem; font-family:inherit; font-size:.9rem; transition:border-color .15s; outline:none; }
+    input:focus, select:focus { border-color:var(--accent); }
+    input.error { border-color:#ef4444; }
+    .input-group { display:flex; gap:.5rem; }
+    .input-group input { flex:1; }
+
+    /* Flash errors */
+    .flash-list { margin-bottom:1.25rem; }
+    .flash-item { background:#fee2e2; border:1px solid #fca5a5; border-radius:8px; padding:.6rem .9rem; font-size:.84rem; color:#b91c1c; margin-bottom:.4rem; }
+
+    /* Order summary */
+    .summary-sticky { position:sticky; top:80px; }
+    .summary-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; }
+    .summary-card h2 { font-size:.88rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:1.25rem; }
+    .sum-item { display:flex; align-items:flex-start; gap:.75rem; margin-bottom:.85rem; }
+    .sum-item:last-of-type { margin-bottom:1.25rem; padding-bottom:1.25rem; border-bottom:1px solid var(--border); }
+    .sum-thumb { width:44px; height:44px; border-radius:7px; background:#eee; border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1.1rem; flex-shrink:0; overflow:hidden; position:relative; }
+    .sum-thumb img { width:100%; height:100%; object-fit:cover; }
+    .sum-thumb .qty-badge { position:absolute; top:-5px; right:-5px; background:var(--muted); color:#fff; font-size:.62rem; font-weight:700; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+    .sum-item-name { font-size:.85rem; font-weight:600; flex:1; min-width:0; }
+    .sum-item-price { font-size:.88rem; font-weight:700; flex-shrink:0; }
+    .sum-row { display:flex; justify-content:space-between; font-size:.88rem; color:var(--muted); margin-bottom:.5rem; }
+    .sum-row.total { font-size:1.05rem; font-weight:800; color:var(--text); border-top:1px solid var(--border); margin-top:.5rem; padding-top:.75rem; }
+    .shipping-free { color:#16a34a; font-weight:600; }
+    .free-notice { background:#f0fdf4; border:1px solid #bbf7d0; border-radius:7px; padding:.5rem .75rem; font-size:.76rem; color:#15803d; margin-bottom:1rem; }
+
+    .btn-place-order { width:100%; background:var(--accent); color:#fff; border:none; padding:1rem; border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer; font-family:inherit; transition:opacity .15s; margin-top:1rem; }
+    .btn-place-order:hover { opacity:.88; }
+    .btn-place-order:disabled { opacity:.5; cursor:not-allowed; }
+    .order-disclaimer { font-size:.72rem; color:var(--muted); text-align:center; margin-top:.6rem; line-height:1.5; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/store/{{ store.slug }}">{{ store.name.split()[0] }}<span>{% if store.name.split()|length > 1 %} {{ store.name.split()[1:]|join(' ') }}{% endif %}</span></a>
+  <span class="secure-badge">🔒 Compra segura</span>
+</header>
+
+<main>
+  <div class="steps">
+    <div class="step"><span class="step-num">1</span> Carrinho</div>
+    <span class="step-sep">›</span>
+    <div class="step active"><span class="step-num">2</span> Dados</div>
+    <span class="step-sep">›</span>
+    <div class="step"><span class="step-num">3</span> Confirmação</div>
+  </div>
+
+  {% if get_flashed_messages() %}
+  <div class="flash-list">
+    {% for cat, msg in get_flashed_messages(with_categories=true) %}
+    <div class="flash-item">⚠ {{ msg }}</div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <form action="/store/{{ store.slug }}/checkout" method="post" id="checkoutForm">
+  <div class="checkout-grid">
+
+    <!-- LEFT: formulário -->
+    <div>
+      <!-- Dados pessoais -->
+      <div class="section-card">
+        <h2>👤 Dados pessoais</h2>
+        <div class="form-grid">
+          <div class="full">
+            <label>Nome completo *</label>
+            <input type="text" name="customer_name" required
+                   value="{{ form_data.customer_name if form_data else '' }}"
+                   placeholder="Seu nome completo" />
+          </div>
+          <div>
+            <label>E-mail *</label>
+            <input type="email" name="customer_email" required
+                   value="{{ form_data.customer_email if form_data else '' }}"
+                   placeholder="email@exemplo.com" />
+          </div>
+          <div>
+            <label>Telefone / WhatsApp *</label>
+            <input type="tel" name="customer_phone" required
+                   value="{{ form_data.customer_phone if form_data else '' }}"
+                   placeholder="(11) 99999-9999"
+                   oninput="maskPhone(this)" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Endereço -->
+      <div class="section-card">
+        <h2>📍 Endereço de entrega</h2>
+        <div class="form-grid">
+          <div>
+            <label>CEP *</label>
+            <div class="input-group">
+              <input type="text" name="address_zip" id="cepInput" required maxlength="9"
+                     value="{{ form_data.address_zip if form_data else '' }}"
+                     placeholder="00000-000"
+                     oninput="maskCep(this)" onblur="fetchCep(this.value)" />
+            </div>
+            <div style="font-size:.72rem;color:var(--muted);margin-top:.25rem;" id="cepStatus"></div>
+          </div>
+          <div>
+            <label>Estado *</label>
+            <select name="address_state" id="stateSelect" required>
+              <option value="">Selecione</option>
+              {% for uf in ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'] %}
+              <option value="{{ uf }}" {% if form_data and form_data.address_state == uf %}selected{% endif %}>{{ uf }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="full">
+            <label>Endereço (rua, avenida) *</label>
+            <input type="text" name="address_street" id="streetInput" required
+                   value="{{ form_data.address_street if form_data else '' }}"
+                   placeholder="Rua Exemplo" />
+          </div>
+          <div style="max-width:120px;">
+            <label>Número *</label>
+            <input type="text" name="address_number" required
+                   value="{{ form_data.address_number if form_data else '' }}"
+                   placeholder="123" />
+          </div>
+          <div>
+            <label>Cidade *</label>
+            <input type="text" name="address_city" id="cityInput" required
+                   value="{{ form_data.address_city if form_data else '' }}"
+                   placeholder="São Paulo" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: resumo -->
+    <div class="summary-sticky">
+      <div class="summary-card">
+        <h2>🛒 Resumo do pedido</h2>
+
+        {% for item in summary.items %}
+        <div class="sum-item">
+          <div class="sum-thumb">
+            {% if item.image %}<img src="{{ item.image }}" alt="{{ item.name }}" />
+            {% else %}📦{% endif %}
+            <span class="qty-badge">{{ item.qty }}</span>
+          </div>
+          <div class="sum-item-name">{{ item.name }}</div>
+          <div class="sum-item-price">R$ {{ '%.2f'|format(item.line_total) }}</div>
+        </div>
+        {% endfor %}
+
+        <div class="sum-row"><span>Subtotal</span><span>R$ {{ '%.2f'|format(summary.subtotal) }}</span></div>
+        <div class="sum-row">
+          <span>Frete</span>
+          <span>{% if summary.shipping == 0 %}<span class="shipping-free">Grátis</span>{% else %}R$ {{ '%.2f'|format(summary.shipping) }}{% endif %}</span>
+        </div>
+        {% if summary.shipping == 0 and summary.subtotal > 0 %}
+        <div class="free-notice">🎉 Você ganhou frete grátis!</div>
+        {% endif %}
+        <div class="sum-row total"><span>Total</span><span>R$ {{ '%.2f'|format(summary.total) }}</span></div>
+
+        <button type="submit" class="btn-place-order" id="submitBtn">
+          Confirmar pedido
+        </button>
+        <p class="order-disclaimer">
+          Ao confirmar, você concorda com os termos da loja.<br>
+          O vendedor entrará em contato para combinar o pagamento.
+        </p>
+      </div>
+      <div style="text-align:center;margin-top:.75rem;">
+        <a href="/store/{{ store.slug }}/cart" style="font-size:.8rem;color:var(--muted);">← Voltar ao carrinho</a>
+      </div>
+    </div>
+
+  </div>
+  </form>
+</main>
+
+<script>
+function maskPhone(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,11);
+  if (v.length > 10) v = v.replace(/^(\d{2})(\d{5})(\d{4})$/,'($1) $2-$3');
+  else if (v.length > 6)  v = v.replace(/^(\d{2})(\d{4})(\d+)$/,'($1) $2-$3');
+  else if (v.length > 2)  v = v.replace(/^(\d{2})(\d+)$/,'($1) $2');
+  else if (v.length > 0)  v = '(' + v;
+  el.value = v;
+}
+function maskCep(el) {
+  let v = el.value.replace(/\D/g,'').slice(0,8);
+  if (v.length > 5) v = v.slice(0,5) + '-' + v.slice(5);
+  el.value = v;
+}
+function fetchCep(cep) {
+  const raw = cep.replace(/\D/g,'');
+  if (raw.length !== 8) return;
+  const st = document.getElementById('cepStatus');
+  st.textContent = 'Buscando...';
+  fetch(`https://viacep.com.br/ws/${raw}/json/`)
+    .then(r => r.json())
+    .then(d => {
+      if (d.erro) { st.textContent = 'CEP não encontrado.'; return; }
+      st.textContent = '';
+      if (d.logradouro) document.getElementById('streetInput').value = d.logradouro;
+      if (d.localidade) document.getElementById('cityInput').value   = d.localidade;
+      if (d.uf) document.getElementById('stateSelect').value         = d.uf;
+    })
+    .catch(() => { st.textContent = 'Não foi possível buscar o CEP.'; });
+}
+document.getElementById('checkoutForm').addEventListener('submit', function() {
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = 'Processando...';
+});
+</script>
+</body>
+</html>

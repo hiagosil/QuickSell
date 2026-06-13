@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'mp_settings' %}
+
+{% block title %}Mercado Pago — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.75rem; flex-wrap:wrap; }
+  .config-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; max-width:580px; }
+  .config-card h2 { font-size:.82rem; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--muted); margin-bottom:1.25rem; }
+  .token-preview { font-family:monospace; font-size:.82rem; color:var(--muted); background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:.5rem .8rem; margin-bottom:1.25rem; word-break:break-all; }
+  .webhook-url { font-family:monospace; font-size:.78rem; color:var(--accent); background:var(--surface2); border:1px solid var(--border); border-radius:7px; padding:.5rem .8rem; word-break:break-all; cursor:pointer; transition:background .15s; }
+  .webhook-url:hover { background:var(--surface3); }
+  .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; margin-right:.4rem; }
+  .dot-active { background:var(--accent2); }
+  .dot-inactive { background:var(--muted); }
+  .info-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; font-size:.83rem; color:var(--muted); margin-bottom:1.5rem; }
+  .info-box strong { color:var(--text); }
+  .info-box ol { margin-left:1.25rem; margin-top:.5rem; }
+  .info-box ol li { margin-bottom:.3rem; }
+  .danger-zone { border:1px solid #ff4d6a30; border-radius:var(--radius); padding:1.25rem 1.5rem; margin-top:2rem; max-width:580px; }
+  .danger-zone h3 { color:var(--danger); margin-bottom:.5rem; font-size:.95rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="sep">›</span>
+      <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+      <span class="sep">›</span>
+      <span class="cur">Mercado Pago</span>
+    </div>
+    <h1>Integração Mercado Pago</h1>
+    <p class="text-muted" style="font-size:.88rem;margin-top:.25rem;">Configure o recebimento via PIX para esta loja.</p>
+  </div>
+  {% if cfg and cfg.is_active %}
+    <span class="badge badge-success" style="align-self:flex-start;"><span class="status-dot dot-active"></span>Ativo</span>
+  {% else %}
+    <span class="badge" style="align-self:flex-start;"><span class="status-dot dot-inactive"></span>Não configurado</span>
+  {% endif %}
+</div>
+
+<!-- Instruções -->
+<div class="info-box">
+  <strong>Como configurar:</strong>
+  <ol>
+    <li>Acesse <strong>mercadopago.com.br/developers</strong> e crie uma aplicação.</li>
+    <li>Em <strong>Credenciais de produção</strong>, copie o <strong>Access Token</strong>.</li>
+    <li>Em <strong>Webhooks</strong>, cadastre a URL abaixo e marque o evento <strong>payment</strong>.</li>
+    <li>Copie o <strong>Secret</strong> gerado pelo MP e cole no campo abaixo.</li>
+  </ol>
+</div>
+
+<!-- URL do Webhook -->
+<div style="margin-bottom:1.5rem;max-width:580px;">
+  <div style="font-size:.74rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;">URL do Webhook (cadastre no Mercado Pago)</div>
+  <div class="webhook-url" onclick="copyWebhook(this)" title="Clique para copiar">
+    {{ request.host_url }}store/{{ store.slug }}/webhook/mercadopago
+  </div>
+  <div style="font-size:.72rem;color:var(--muted);margin-top:.3rem;" id="whCopyMsg"></div>
+</div>
+
+<!-- Formulário -->
+<div class="config-card">
+  <h2>Credenciais</h2>
+
+  {% if cfg %}
+  <div style="margin-bottom:1.25rem;">
+    <div style="font-size:.75rem;color:var(--muted);margin-bottom:.25rem;">Token atual</div>
+    <div class="token-preview">{{ cfg.masked_token() }}</div>
+  </div>
+  {% endif %}
+
+  <form action="/stores/{{ store.id }}/settings/mercadopago" method="post">
+    <input type="hidden" name="action" value="save" />
+    <div class="form-group">
+      <label>Access Token *</label>
+      <input type="password" name="access_token"
+             placeholder="APP_USR-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+             autocomplete="off" required />
+      <div class="form-hint">Começa com <code>APP_USR-</code> (produção) ou <code>TEST-</code> (sandbox)</div>
+    </div>
+    <div class="form-group">
+      <label>Webhook Secret (recomendado)</label>
+      <input type="password" name="webhook_secret"
+             placeholder="{% if cfg and cfg.webhook_secret %}••••••••{% else %}Cole aqui o secret do webhook{% endif %}"
+             autocomplete="off" />
+      <div class="form-hint">Gerado automaticamente pelo Mercado Pago ao criar o webhook. Garante autenticidade das notificações.</div>
+    </div>
+    <button type="submit" class="btn btn-primary btn-full">
+      {% if cfg %}Atualizar credenciais{% else %}Salvar e ativar{% endif %}
+    </button>
+  </form>
+</div>
+
+{% if cfg %}
+<div class="danger-zone">
+  <h3>Remover integração</h3>
+  <p class="text-muted" style="font-size:.84rem;margin-bottom:1rem;">Remove as credenciais e desativa o PIX nesta loja.</p>
+  <form action="/stores/{{ store.id }}/settings/mercadopago" method="post"
+        onsubmit="return confirm('Remover integração com Mercado Pago?')">
+    <input type="hidden" name="action" value="delete" />
+    <button type="submit" class="btn btn-danger btn-sm">Remover integração</button>
+  </form>
+</div>
+{% endif %}
+
+<script>
+function copyWebhook(el) {
+  navigator.clipboard?.writeText(el.textContent.trim()).then(() => {
+    document.getElementById('whCopyMsg').textContent = '✓ URL copiada!';
+    setTimeout(() => { document.getElementById('whCopyMsg').textContent = ''; }, 2000);
+  });
+}
+</script>
+{% endblock %}

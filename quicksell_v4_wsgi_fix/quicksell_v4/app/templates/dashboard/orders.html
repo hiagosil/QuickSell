@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'orders' %}
+
+{% block title %}Pedidos — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .page-header { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.75rem; flex-wrap:wrap; }
+  .stat-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:.85rem; margin-bottom:1.75rem; }
+  .stat-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; }
+  .stat-card .val { font-family:var(--font-display); font-weight:800; font-size:1.5rem; line-height:1.1; }
+  .stat-card .lbl { font-size:.74rem; color:var(--muted); margin-top:.2rem; }
+
+  .status-tabs { display:flex; gap:.4rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+  .status-tab { font-size:.78rem; padding:.38rem .85rem; border-radius:7px; border:1px solid var(--border); background:var(--surface); color:var(--muted); text-decoration:none; transition:all .15s; display:flex; align-items:center; gap:.35rem; }
+  .status-tab:hover { color:var(--text); border-color:var(--accent); }
+  .status-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .status-tab .cnt { background:rgba(255,255,255,.2); border-radius:99px; padding:.05rem .4rem; font-size:.7rem; font-weight:700; }
+  .status-tab:not(.active) .cnt { background:var(--surface3); color:var(--muted); }
+
+  .orders-table { width:100%; border-collapse:collapse; }
+  .orders-table th { text-align:left; padding:.55rem 1rem; font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
+  .orders-table td { padding:.9rem 1rem; border-bottom:1px solid var(--border); vertical-align:middle; font-size:.87rem; }
+  .orders-table tr:last-child td { border-bottom:none; }
+  .orders-table tr:hover td { background:var(--surface2); }
+  .orders-table a { color:inherit; text-decoration:none; }
+  .orders-table tr:hover .order-id { color:var(--accent); }
+
+  .order-id { font-family:monospace; font-weight:700; font-size:.92rem; }
+  .customer-name { font-weight:500; }
+  .customer-email { font-size:.78rem; color:var(--muted); }
+
+  .badge { font-size:.68rem; padding:.22rem .6rem; border-radius:99px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; }
+  .badge-warning  { background:#f59e0b10; color:var(--warning,#f59e0b); border:1px solid #f59e0b30; }
+  .badge-info     { background:#3b82f610; color:#3b82f6; border:1px solid #3b82f630; }
+  .badge-purple   { background:#7c5cfc10; color:var(--accent); border:1px solid #7c5cfc30; }
+  .badge-success  { background:#00e5a010; color:var(--accent2,#00e5a0); border:1px solid #00e5a030; }
+  .badge-danger   { background:#ff4d6a10; color:var(--danger,#ff4d6a); border:1px solid #ff4d6a30; }
+  .badge-default  { background:var(--surface2); color:var(--muted); border:1px solid var(--border); }
+
+  .revenue-card { background:linear-gradient(135deg,#7c5cfc18,#00e5a010); border:1px solid var(--border); border-radius:10px; padding:1rem 1.25rem; display:flex; align-items:center; justify-content:space-between; gap:1rem; margin-bottom:1.75rem; }
+  .revenue-card .rev-val { font-family:var(--font-display); font-size:1.5rem; font-weight:800; color:var(--accent2,#00e5a0); }
+  .revenue-card .rev-lbl { font-size:.76rem; color:var(--muted); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="sep">›</span>
+      <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+      <span class="sep">›</span>
+      <span class="cur">Pedidos</span>
+    </div>
+    <h1>Pedidos</h1>
+    <p class="text-muted" style="font-size:.88rem;margin-top:.25rem;">{{ counts.all }} pedido{% if counts.all != 1 %}s{% endif %} no total</p>
+  </div>
+</div>
+
+<!-- Revenue + stat cards -->
+<div class="revenue-card">
+  <div>
+    <div class="rev-lbl">Receita confirmada (pago + enviado + entregue)</div>
+    <div class="rev-val">R$ {{ '%.2f'|format(store.total_revenue()) }}</div>
+  </div>
+  <span style="font-size:2rem;">💰</span>
+</div>
+
+<div class="stat-row">
+  {% for status in OrderStatus.ALL %}
+  <div class="stat-card">
+    {% if status == 'pendente' %}
+    <div class="val" style="color:var(--warning);">{{ counts[status] }}</div>
+    {% elif status == 'cancelado' %}
+    <div class="val" style="color:var(--danger);">{{ counts[status] }}</div>
+    {% elif status == 'entregue' %}
+    <div class="val" style="color:var(--accent2);">{{ counts[status] }}</div>
+    {% else %}
+    <div class="val">{{ counts[status] }}</div>
+    {% endif %}
+    <div class="lbl">{{ OrderStatus.LABELS[status] }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Status tabs -->
+<div class="status-tabs">
+  <a href="/stores/{{ store.id }}/orders" class="status-tab {% if not active_status %}active{% endif %}">
+    Todos <span class="cnt">{{ counts.all }}</span>
+  </a>
+  {% for status in OrderStatus.ALL %}
+  <a href="/stores/{{ store.id }}/orders?status={{ status }}"
+     class="status-tab {% if active_status == status %}active{% endif %}">
+    {{ OrderStatus.LABELS[status] }}
+    <span class="cnt">{{ counts[status] }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+{% if orders %}
+<div class="card" style="padding:0;overflow:hidden;">
+  <table class="orders-table">
+    <thead>
+      <tr>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Itens</th>
+        <th>Total</th>
+        <th>Status</th>
+        <th>Data</th>
+        <th style="text-align:right;">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr onclick="location.href='/stores/{{ store.id }}/orders/{{ order.id }}'" style="cursor:pointer;">
+        <td><span class="order-id">#{{ '%04d'|format(order.id) }}</span></td>
+        <td>
+          <div class="customer-name">{{ order.customer_name }}</div>
+          <div class="customer-email">{{ order.customer_email }}</div>
+        </td>
+        <td style="color:var(--muted);">{{ order.item_count() }} un.</td>
+        <td style="font-weight:700;">R$ {{ '%.2f'|format(order.total|float) }}</td>
+        <td>
+          <span class="badge badge-{{ order.status_color }}">{{ order.status_label }}</span>
+        </td>
+        <td style="color:var(--muted);font-size:.82rem;white-space:nowrap;">
+          {{ order.created_at.strftime('%d/%m/%Y %H:%M') }}
+        </td>
+        <td style="text-align:right;" onclick="event.stopPropagation()">
+          <a href="/stores/{{ store.id }}/orders/{{ order.id }}" class="btn btn-ghost btn-xs">Ver →</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">📋</span>
+  <h3>Nenhum pedido{% if active_status %} com status "{{ OrderStatus.LABELS[active_status] }}"{% endif %}</h3>
+  <p>{% if active_status %}Tente outro filtro.{% else %}Quando clientes realizarem pedidos, eles aparecerão aqui.{% endif %}</p>
+  {% if active_status %}
+  <a href="/stores/{{ store.id }}/orders" class="btn btn-outline">Ver todos</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

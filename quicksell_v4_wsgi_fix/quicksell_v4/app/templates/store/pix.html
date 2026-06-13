@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pagar com PIX — {{ store.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root {
+      --accent:{{ store.primary_color }};
+      --pix:#32bcad;
+      --bg:#f8fafc; --surface:#fff; --border:#e2e8f0;
+      --text:#0f172a; --muted:#64748b; --radius:16px;
+    }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:0 1.5rem; height:60px; display:flex; align-items:center; justify-content:space-between; }
+    .logo { font-weight:800; font-size:1rem; color:var(--text); text-decoration:none; }
+    .logo span { color:var(--accent); }
+    .secure { font-size:.74rem; color:var(--muted); display:flex; align-items:center; gap:.35rem; }
+
+    main { flex:1; display:flex; align-items:center; justify-content:center; padding:2rem 1rem; }
+    .pix-box { width:100%; max-width:480px; }
+
+    /* Steps */
+    .steps { display:flex; align-items:center; gap:.5rem; font-size:.76rem; color:var(--muted); margin-bottom:2rem; }
+    .step-done .step-num { background:var(--pix); color:#fff; border-color:var(--pix); }
+    .step-active .step-num { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .step-active { color:var(--text); font-weight:600; }
+    .step-num { width:22px; height:22px; border-radius:50%; background:var(--border); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; }
+    .step-sep { color:var(--border); }
+
+    /* Status banner */
+    .status-banner {
+      display:flex; align-items:center; gap:.75rem;
+      padding:.85rem 1.1rem; border-radius:10px;
+      margin-bottom:1.5rem; font-size:.88rem;
+    }
+    .banner-pending  { background:#fefce8; border:1px solid #fde047; color:#854d0e; }
+    .banner-approved { background:#f0fdf4; border:1px solid #86efac; color:#166534; }
+    .banner-expired  { background:#fef2f2; border:1px solid #fca5a5; color:#991b1b; }
+    .banner-icon { font-size:1.4rem; flex-shrink:0; }
+    .banner-title { font-weight:700; }
+    .banner-sub   { font-size:.78rem; margin-top:.1rem; }
+
+    /* Countdown */
+    .countdown {
+      font-size:.78rem; color:var(--muted); text-align:center;
+      margin-bottom:1.25rem;
+    }
+    .countdown span { font-weight:700; color:var(--text); font-variant-numeric:tabular-nums; }
+    .countdown.urgent span { color:#dc2626; }
+
+    /* QR + copia-e-cola */
+    .pix-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:1.75rem;
+      text-align:center; margin-bottom:1rem;
+    }
+    .qr-wrap {
+      display:inline-flex; align-items:center; justify-content:center;
+      background:#fff; border:2px solid var(--border);
+      border-radius:12px; padding:.75rem; margin:0 auto 1.25rem;
+    }
+    .qr-wrap img { width:200px; height:200px; display:block; }
+    .qr-wrap .qr-placeholder {
+      width:200px; height:200px; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; color:var(--muted);
+      font-size:.8rem; gap:.5rem;
+    }
+    .qr-placeholder .qr-icon { font-size:3rem; }
+
+    .copy-section { margin-top:1rem; }
+    .copy-label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.4rem; }
+    .copy-wrap { display:flex; gap:.5rem; }
+    .copy-input {
+      flex:1; background:var(--bg); border:1px solid var(--border);
+      border-radius:8px; padding:.6rem .85rem; font-size:.78rem;
+      font-family:monospace; color:var(--text); outline:none;
+      word-break:break-all; white-space:nowrap; overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .copy-input:focus { border-color:var(--pix); }
+    .btn-copy {
+      flex-shrink:0; background:var(--pix); color:#fff; border:none;
+      border-radius:8px; padding:.6rem 1.1rem; font-size:.84rem;
+      font-weight:600; cursor:pointer; transition:opacity .15s;
+      font-family:inherit; display:flex; align-items:center; gap:.35rem;
+    }
+    .btn-copy:hover { opacity:.88; }
+    .copy-confirm { font-size:.76rem; color:var(--pix); font-weight:600; margin-top:.4rem; min-height:1.2em; transition:opacity .2s; }
+
+    /* Steps instrucao */
+    .pix-steps { list-style:none; text-align:left; margin-top:1.25rem; }
+    .pix-steps li {
+      display:flex; align-items:flex-start; gap:.75rem;
+      font-size:.83rem; color:var(--muted); padding:.35rem 0;
+      border-bottom:1px solid var(--border);
+    }
+    .pix-steps li:last-child { border:none; }
+    .pix-steps li .n {
+      width:20px; height:20px; border-radius:50%;
+      background:var(--pix); color:#fff; font-size:.68rem;
+      font-weight:700; display:flex; align-items:center; justify-content:center;
+      flex-shrink:0; margin-top:.1rem;
+    }
+
+    /* Resumo do pedido */
+    .order-summary {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:1.25rem 1.5rem;
+      font-size:.88rem; margin-bottom:1rem;
+    }
+    .order-summary h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:.85rem; }
+    .sum-row { display:flex; justify-content:space-between; color:var(--muted); margin-bottom:.35rem; }
+    .sum-total { display:flex; justify-content:space-between; font-weight:800; font-size:1.05rem; border-top:1px solid var(--border); padding-top:.65rem; margin-top:.5rem; }
+
+    /* Approved overlay */
+    #approvedOverlay {
+      display:none; position:fixed; inset:0; z-index:999;
+      background:rgba(0,0,0,.5); backdrop-filter:blur(4px);
+      align-items:center; justify-content:center;
+    }
+    #approvedOverlay.show { display:flex; }
+    .approved-card {
+      background:#fff; border-radius:20px; padding:2.5rem 2rem;
+      text-align:center; max-width:340px; width:90%;
+      animation:popIn .4s cubic-bezier(.17,.67,.35,1.3);
+    }
+    @keyframes popIn { from{transform:scale(.7);opacity:0} to{transform:scale(1);opacity:1} }
+    .approved-icon { font-size:3.5rem; display:block; margin-bottom:.75rem; }
+    .approved-title { font-size:1.5rem; font-weight:800; color:#15803d; margin-bottom:.4rem; }
+    .approved-sub { font-size:.9rem; color:var(--muted); margin-bottom:1.5rem; }
+    .btn-approved { display:block; background:#16a34a; color:#fff; text-decoration:none; padding:.85rem 2rem; border-radius:10px; font-weight:700; font-size:.95rem; transition:opacity .15s; }
+    .btn-approved:hover { opacity:.88; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/store/{{ store.slug }}">{{ store.name.split()[0] }}<span>{% if store.name.split()|length > 1 %} {{ store.name.split()[1:]|join(' ') }}{% endif %}</span></a>
+  <span class="secure">🔒 Ambiente seguro</span>
+</header>
+
+<main>
+  <div class="pix-box">
+
+    <div class="steps">
+      <div class="step step-done"><span class="step-num">✓</span> Carrinho</div>
+      <span class="step-sep">›</span>
+      <div class="step step-done"><span class="step-num">✓</span> Dados</div>
+      <span class="step-sep">›</span>
+      <div class="step step-active"><span class="step-num">3</span> Pagamento</div>
+    </div>
+
+    <!-- Banner de status dinâmico -->
+    <div class="status-banner banner-pending" id="statusBanner">
+      <span class="banner-icon" id="bannerIcon">⏳</span>
+      <div>
+        <div class="banner-title" id="bannerTitle">Aguardando pagamento</div>
+        <div class="banner-sub" id="bannerSub">Escaneie o QR Code ou copie o código PIX abaixo</div>
+      </div>
+    </div>
+
+    <!-- Countdown -->
+    {% if payment.pix_expires_at %}
+    <div class="countdown" id="countdown">
+      Expira em <span id="timer">--:--</span>
+    </div>
+    {% endif %}
+
+    <!-- Resumo do pedido -->
+    <div class="order-summary">
+      <h3>Pedido #{{ '%04d'|format(order.id) }}</h3>
+      <div class="sum-row"><span>Subtotal</span><span>R$ {{ '%.2f'|format(order.subtotal|float) }}</span></div>
+      <div class="sum-row">
+        <span>Frete</span>
+        <span>{% if order.shipping|float == 0 %}Grátis{% else %}R$ {{ '%.2f'|format(order.shipping|float) }}{% endif %}</span>
+      </div>
+      <div class="sum-total"><span>Total</span><span>R$ {{ '%.2f'|format(order.total|float) }}</span></div>
+    </div>
+
+    <!-- QR Code + Copia-e-cola -->
+    <div class="pix-card" id="pixCard">
+      <div class="qr-wrap">
+        {% if payment.pix_qr_code %}
+          <img src="data:image/png;base64,{{ payment.pix_qr_code }}"
+               alt="QR Code PIX" id="qrImg" />
+        {% else %}
+          <div class="qr-placeholder">
+            <span class="qr-icon">📱</span>
+            <span>QR Code indisponível</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="copy-section">
+        <div class="copy-label">PIX Copia e Cola</div>
+        <div class="copy-wrap">
+          <input type="text" class="copy-input" id="pixCode"
+                 value="{{ payment.pix_copy_paste }}" readonly />
+          <button class="btn-copy" onclick="copyPix()">
+            📋 Copiar
+          </button>
+        </div>
+        <div class="copy-confirm" id="copyConfirm"></div>
+      </div>
+
+      <ul class="pix-steps">
+        <li><span class="n">1</span>Abra o app do seu banco ou carteira digital</li>
+        <li><span class="n">2</span>Escolha pagar via PIX — QR Code ou copia e cola</li>
+        <li><span class="n">3</span>Escaneie ou cole o código acima</li>
+        <li><span class="n">4</span>Confirme o pagamento de <strong>R$ {{ '%.2f'|format(order.total|float) }}</strong></li>
+        <li><span class="n">5</span>Aguarde a confirmação automática nesta página</li>
+      </ul>
+    </div>
+
+    <div style="text-align:center; font-size:.76rem; color:var(--muted); margin-top:.5rem;">
+      <span id="pollingStatus">🔄 Verificando pagamento...</span>
+    </div>
+
+  </div>
+</main>
+
+<!-- Overlay de pagamento aprovado -->
+<div id="approvedOverlay">
+  <div class="approved-card">
+    <span class="approved-icon">✅</span>
+    <div class="approved-title">Pagamento aprovado!</div>
+    <div class="approved-sub">Seu pedido foi confirmado com sucesso. Redirecionando...</div>
+    <a href="#" class="btn-approved" id="successLink">Ver pedido →</a>
+  </div>
+</div>
+
+<script>
+const ORDER_ID    = {{ order.id }};
+const SLUG        = {{ store.slug|tojson }};
+const STATUS_URL  = `/store/${SLUG}/pedido/${ORDER_ID}/status`;
+const SUCCESS_URL = `/store/${SLUG}/pedido/${ORDER_ID}/confirmacao`;
+{% if payment.pix_expires_at %}
+const EXPIRES_AT  = new Date({{ (payment.pix_expires_at.timestamp() * 1000)|int }});
+{% else %}
+const EXPIRES_AT  = null;
+{% endif %}
+
+/* ── Copia e cola ── */
+function copyPix() {
+  const code = document.getElementById('pixCode').value;
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => showCopyConfirm())
+    .catch(() => { document.getElementById('pixCode').select(); document.execCommand('copy'); showCopyConfirm(); });
+}
+function showCopyConfirm() {
+  const el = document.getElementById('copyConfirm');
+  el.textContent = '✓ Código copiado!';
+  setTimeout(() => { el.textContent = ''; }, 2500);
+}
+
+/* ── Countdown ── */
+function updateTimer() {
+  if (!EXPIRES_AT) return;
+  const diff = Math.max(0, Math.floor((EXPIRES_AT - Date.now()) / 1000));
+  const m    = String(Math.floor(diff / 60)).padStart(2, '0');
+  const s    = String(diff % 60).padStart(2, '0');
+  const el   = document.getElementById('timer');
+  const cd   = document.getElementById('countdown');
+  if (el) {
+    el.textContent = `${m}:${s}`;
+    if (diff < 120) cd?.classList.add('urgent');
+  }
+  if (diff === 0) setExpired();
+}
+
+function setExpired() {
+  const banner = document.getElementById('statusBanner');
+  banner.className = 'status-banner banner-expired';
+  document.getElementById('bannerIcon').textContent  = '⌛';
+  document.getElementById('bannerTitle').textContent = 'PIX expirado';
+  document.getElementById('bannerSub').textContent   = 'Gere um novo PIX para continuar.';
+  document.getElementById('pollingStatus').textContent = '';
+  stopPolling();
+}
+
+/* ── Polling de status ── */
+let pollInterval = null;
+let pollCount    = 0;
+const MAX_POLLS  = 360;   // 30 min a cada 5 s
+
+function startPolling() {
+  pollInterval = setInterval(checkStatus, 5000);
+}
+function stopPolling() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+}
+
+async function checkStatus() {
+  pollCount++;
+  if (pollCount > MAX_POLLS) { stopPolling(); return; }
+
+  try {
+    const r    = await fetch(STATUS_URL);
+    const data = await r.json();
+
+    if (data.approved) {
+      stopPolling();
+      showApproved(data.redirect || SUCCESS_URL);
+      return;
+    }
+    if (data.expired) {
+      setExpired(); return;
+    }
+    document.getElementById('pollingStatus').textContent = '🔄 Verificando pagamento...';
+  } catch(e) {
+    document.getElementById('pollingStatus').textContent = '⚠ Verificando...';
+  }
+}
+
+function showApproved(redirectUrl) {
+  const overlay = document.getElementById('approvedOverlay');
+  document.getElementById('successLink').href = redirectUrl;
+  overlay.classList.add('show');
+
+  const banner = document.getElementById('statusBanner');
+  banner.className = 'status-banner banner-approved';
+  document.getElementById('bannerIcon').textContent  = '✅';
+  document.getElementById('bannerTitle').textContent = 'Pagamento aprovado!';
+  document.getElementById('bannerSub').textContent   = 'Seu pedido foi confirmado.';
+
+  setTimeout(() => { window.location.href = redirectUrl; }, 3500);
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  updateTimer();
+  setInterval(updateTimer, 1000);
+  startPolling();
+});
+</script>
+</body>
+</html>

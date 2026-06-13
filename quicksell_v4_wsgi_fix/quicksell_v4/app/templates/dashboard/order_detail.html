@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'orders' %}
+
+{% block title %}Pedido #{{ '%04d'|format(order.id) }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .detail-grid { display:grid; grid-template-columns:1fr 320px; gap:1.5rem; }
+  @media(max-width:860px) { .detail-grid { grid-template-columns:1fr; } }
+
+  .info-section { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.25rem; }
+  .info-section h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:1rem; }
+  .info-row { display:flex; justify-content:space-between; align-items:baseline; font-size:.88rem; padding:.45rem 0; border-bottom:1px solid var(--border); }
+  .info-row:last-child { border-bottom:none; }
+  .info-row .lbl { color:var(--muted); }
+  .info-row .val { font-weight:500; max-width:250px; text-align:right; }
+
+  .order-items-table { width:100%; border-collapse:collapse; }
+  .order-items-table th { font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); padding:.5rem .75rem; border-bottom:1px solid var(--border); text-align:left; }
+  .order-items-table td { padding:.85rem .75rem; border-bottom:1px solid var(--border); font-size:.88rem; vertical-align:middle; }
+  .order-items-table tr:last-child td { border-bottom:none; }
+
+  .oi-thumb { width:40px; height:40px; border-radius:7px; background:var(--surface2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1rem; overflow:hidden; flex-shrink:0; }
+  .oi-thumb img { width:100%; height:100%; object-fit:cover; }
+  .oi-info-wrap { display:flex; align-items:center; gap:.75rem; }
+
+  .badge { font-size:.72rem; padding:.28rem .7rem; border-radius:99px; font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+  .badge-warning  { background:#f59e0b10; color:#f59e0b; border:1px solid #f59e0b30; }
+  .badge-info     { background:#3b82f610; color:#3b82f6; border:1px solid #3b82f630; }
+  .badge-purple   { background:#7c5cfc10; color:var(--accent); border:1px solid #7c5cfc30; }
+  .badge-success  { background:#00e5a010; color:var(--accent2,#00e5a0); border:1px solid #00e5a030; }
+  .badge-danger   { background:#ff4d6a10; color:var(--danger); border:1px solid #ff4d6a30; }
+
+  .totals-box { border-top:1px solid var(--border); margin-top:1rem; padding-top:1rem; }
+  .total-row { display:flex; justify-content:space-between; font-size:.88rem; color:var(--muted); margin-bottom:.4rem; }
+  .total-row.grand { font-size:1.05rem; font-weight:800; color:var(--text); border-top:1px solid var(--border); margin-top:.5rem; padding-top:.65rem; }
+
+  /* Status panel */
+  .status-panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.25rem; }
+  .status-panel h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin-bottom:1rem; }
+  .current-status { display:flex; align-items:center; gap:.75rem; margin-bottom:1.25rem; }
+  .current-status .lbl { font-size:.84rem; color:var(--muted); }
+
+  .timeline { list-style:none; position:relative; }
+  .timeline::before { content:''; position:absolute; left:10px; top:4px; bottom:4px; width:2px; background:var(--border); }
+  .timeline li { display:flex; align-items:center; gap:.85rem; position:relative; padding:.35rem 0 .35rem 2rem; font-size:.84rem; color:var(--muted); }
+  .timeline li::before { content:''; position:absolute; left:5px; width:12px; height:12px; border-radius:50%; background:var(--border); border:2px solid var(--surface); z-index:1; }
+  .timeline li.done::before { background:var(--accent2,#00e5a0); }
+  .timeline li.current::before { background:var(--accent); border-color:var(--accent); box-shadow:0 0 0 3px #7c5cfc20; }
+  .timeline li.done, .timeline li.current { color:var(--text); }
+
+  .next-status-btns { display:flex; flex-direction:column; gap:.5rem; }
+  .btn-status { padding:.6rem 1rem; border-radius:8px; font-size:.84rem; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--surface2); color:var(--text); font-family:inherit; transition:all .15s; text-align:left; }
+  .btn-status:hover { border-color:var(--accent); color:var(--accent); }
+  .btn-status.cancel { color:var(--danger); }
+  .btn-status.cancel:hover { border-color:var(--danger); background:#ff4d6a08; }
+
+  .note-form textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:.65rem .85rem; font-family:inherit; font-size:.88rem; resize:vertical; outline:none; min-height:80px; }
+  .note-form textarea:focus { border-color:var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+  <a href="/dashboard">Dashboard</a>
+  <span class="sep">›</span>
+  <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+  <span class="sep">›</span>
+  <a href="/stores/{{ store.id }}/orders">Pedidos</a>
+  <span class="sep">›</span>
+  <span class="cur">#{{ '%04d'|format(order.id) }}</span>
+</div>
+
+<div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;margin-bottom:1.75rem;flex-wrap:wrap;">
+  <div>
+    <h1>Pedido #{{ '%04d'|format(order.id) }}</h1>
+    <p class="text-muted" style="font-size:.85rem;margin-top:.2rem;">{{ order.created_at.strftime('%d/%m/%Y às %H:%M') }}</p>
+  </div>
+  <span class="badge badge-{{ order.status_color }}" style="font-size:.82rem;padding:.4rem 1rem;">{{ order.status_label }}</span>
+</div>
+
+<div class="detail-grid">
+  <!-- LEFT -->
+  <div>
+    <!-- Itens -->
+    <div class="info-section">
+      <h3>🛒 Itens do pedido</h3>
+      <table class="order-items-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th style="text-align:center;">Qtd</th>
+            <th style="text-align:right;">Preço unit.</th>
+            <th style="text-align:right;">Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in order.items %}
+          <tr>
+            <td>
+              <div class="oi-info-wrap">
+                <div class="oi-thumb">
+                  {% if item.product and item.product.image %}
+                    <img src="{{ item.product.image }}" alt="{{ item.product_name }}" />
+                  {% else %}📦{% endif %}
+                </div>
+                <div>
+                  <div style="font-weight:600;">{{ item.product_name }}</div>
+                  {% if item.product and item.product.sku %}
+                  <div style="font-size:.73rem;color:var(--muted);font-family:monospace;">{{ item.product.sku }}</div>
+                  {% endif %}
+                  {% if not item.product %}
+                  <div style="font-size:.72rem;color:var(--muted);">(produto removido)</div>
+                  {% endif %}
+                </div>
+              </div>
+            </td>
+            <td style="text-align:center;">{{ item.quantity }}</td>
+            <td style="text-align:right;">R$ {{ '%.2f'|format(item.price|float) }}</td>
+            <td style="text-align:right;font-weight:700;">R$ {{ '%.2f'|format(item.subtotal|float) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="totals-box">
+        <div class="total-row"><span>Subtotal</span><span>R$ {{ '%.2f'|format(order.subtotal|float) }}</span></div>
+        <div class="total-row">
+          <span>Frete</span>
+          <span>{% if order.shipping|float == 0 %}<span style="color:var(--accent2,#00e5a0);font-weight:600;">Grátis</span>{% else %}R$ {{ '%.2f'|format(order.shipping|float) }}{% endif %}</span>
+        </div>
+        <div class="total-row grand"><span>Total</span><span>R$ {{ '%.2f'|format(order.total|float) }}</span></div>
+      </div>
+    </div>
+
+    <!-- Cliente -->
+    <div class="info-section">
+      <h3>👤 Dados do cliente</h3>
+      <div class="info-row"><span class="lbl">Nome</span><span class="val">{{ order.customer_name }}</span></div>
+      <div class="info-row"><span class="lbl">E-mail</span><span class="val">{{ order.customer_email }}</span></div>
+      <div class="info-row"><span class="lbl">Telefone</span><span class="val">{{ order.customer_phone or '—' }}</span></div>
+    </div>
+
+    <!-- Entrega -->
+    <div class="info-section">
+      <h3>📍 Endereço de entrega</h3>
+      <div class="info-row"><span class="lbl">CEP</span><span class="val">{{ order.address_zip or '—' }}</span></div>
+      <div class="info-row"><span class="lbl">Endereço</span><span class="val">{{ order.address_street or '—' }}, {{ order.address_number or '' }}</span></div>
+      <div class="info-row"><span class="lbl">Cidade / Estado</span><span class="val">{{ order.address_city or '—' }}{% if order.address_state %} / {{ order.address_state }}{% endif %}</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: status + notes -->
+  <div>
+    <!-- Status panel -->
+    <div class="status-panel">
+      <h3>Status do pedido</h3>
+      <div class="current-status">
+        <span class="badge badge-{{ order.status_color }}">{{ order.status_label }}</span>
+        <span class="lbl">status atual</span>
+      </div>
+
+      <!-- Timeline -->
+      {% set STATUS_ORDER = ['pendente', 'pago', 'enviado', 'entregue'] %}
+      <ul class="timeline" style="margin-bottom:1.25rem;">
+        {% for s in STATUS_ORDER %}
+        {% set s_idx = STATUS_ORDER.index(s) %}
+        {% set cur_idx = STATUS_ORDER.index(order.status) if order.status in STATUS_ORDER else -1 %}
+        <li class="{% if s_idx < cur_idx %}done{% elif s_idx == cur_idx %}current{% endif %}">
+          {{ OrderStatus.LABELS[s] }}
+          {% if s_idx < cur_idx %}<span style="font-size:.72rem;color:var(--muted);">✓</span>{% endif %}
+        </li>
+        {% endfor %}
+        {% if order.status == 'cancelado' %}
+        <li class="current" style="color:var(--danger);">Cancelado</li>
+        {% endif %}
+      </ul>
+
+      <!-- Botões de atualização -->
+      {% if order.next_statuses %}
+      <div style="font-size:.76rem;color:var(--muted);margin-bottom:.6rem;">Mover para:</div>
+      <div class="next-status-btns">
+        {% for ns in order.next_statuses %}
+        <form action="/stores/{{ store.id }}/orders/{{ order.id }}/status" method="post">
+          <input type="hidden" name="status" value="{{ ns }}" />
+          <button type="submit"
+                  class="btn-status {% if ns == 'cancelado' %}cancel{% endif %}"
+                  onclick="return confirm('Alterar status para \'{{ OrderStatus.LABELS[ns] }}\'?')">
+            {% if ns == 'pago' %}💳{% elif ns == 'enviado' %}🚚{% elif ns == 'entregue' %}✅{% elif ns == 'cancelado' %}❌{% endif %}
+            {{ OrderStatus.LABELS[ns] }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p style="font-size:.82rem;color:var(--muted);">Nenhuma atualização disponível para este status.</p>
+      {% endif %}
+    </div>
+
+    <!-- Nota interna -->
+    <div class="info-section">
+      <h3>📝 Nota interna</h3>
+      <form action="/stores/{{ store.id }}/orders/{{ order.id }}/notes" method="post" class="note-form">
+        <textarea name="notes" placeholder="Anote aqui informações internas sobre este pedido...">{{ order.notes or '' }}</textarea>
+        <button type="submit" class="btn btn-ghost btn-sm" style="margin-top:.6rem;">Salvar nota</button>
+      </form>
+    </div>
+
+    <!-- Back link -->
+    <a href="/stores/{{ store.id }}/orders" class="btn btn-outline btn-sm">← Voltar aos pedidos</a>
+  </div>
+</div>
+{% endblock %}

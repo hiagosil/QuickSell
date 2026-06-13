@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Criar Conta — QuickSell{% endblock %}
+
+{% block content %}
+<div class="page-sm">
+  <div style="text-align:center; margin-bottom:2rem;">
+    <h1 style="font-size:1.6rem;">Crie sua conta</h1>
+    <p class="text-muted mt-1">Comece grátis. Sua loja online em minutos.</p>
+  </div>
+
+  <div class="card">
+    <form action="/auth/register" method="post">
+      <div class="form-group">
+        <label for="name">Nome completo</label>
+        <input type="text" id="name" name="name" placeholder="Seu nome" required />
+      </div>
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input type="email" id="email" name="email" placeholder="voce@email.com" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <input type="password" id="password" name="password" placeholder="Mínimo 6 caracteres" required minlength="6" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full mt-2">Criar conta</button>
+    </form>
+  </div>
+
+  <p class="text-center text-muted mt-2" style="font-size:0.88rem;">
+    Já tem conta? <a href="/auth/login">Entrar</a>
+  </p>
+</div>
+{% endblock %}

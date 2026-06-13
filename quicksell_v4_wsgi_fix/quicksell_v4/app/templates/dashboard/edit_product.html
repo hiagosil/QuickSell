@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'products' %}
+
+{% block title %}Editar Produto — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .drop-zone {
+    border: 2px dashed var(--border); border-radius: 10px;
+    padding: 1.25rem; text-align: center; cursor: pointer;
+    transition: all 0.2s; position: relative; background: var(--surface2);
+  }
+  .drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: #7c5cfc08; }
+  .drop-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+  .drop-zone .dz-icon { font-size: 1.4rem; display: block; margin-bottom: 0.3rem; }
+  .drop-zone .dz-label { font-size: 0.81rem; color: var(--muted); }
+  .drop-zone .dz-hint  { font-size: 0.71rem; color: var(--muted); margin-top: 0.2rem; }
+
+  .img-preview-wrap { position: relative; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); margin-top: 0.6rem; max-height: 160px; }
+  .img-preview-wrap img { width: 100%; height: 160px; object-fit: cover; display: block; }
+  .img-preview-wrap .remove-img {
+    position: absolute; top: 0.5rem; right: 0.5rem;
+    background: rgba(0,0,0,.7); color: #fff; border: none;
+    border-radius: 50%; width: 26px; height: 26px;
+    cursor: pointer; font-size: 0.75rem;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .price-wrap { position: relative; }
+  .price-wrap .cur { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.82rem; }
+  .price-wrap input { padding-left: 2.1rem; }
+  .danger-zone {
+    border: 1px solid #ff4d6a30; border-radius: var(--radius);
+    padding: 1.25rem 1.5rem; margin-top: 2rem;
+  }
+  .danger-zone h3 { color: var(--danger); margin-bottom: 0.4rem; }
+  .stock-status {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    padding: 0.4rem 0.85rem; border-radius: 8px;
+    font-size: 0.82rem; margin-top: 0.5rem;
+  }
+  .stock-ok   { background: #00e5a010; color: var(--accent2); border: 1px solid #00e5a030; }
+  .stock-low  { background: #f59e0b10; color: var(--warning); border: 1px solid #f59e0b30; }
+  .stock-zero { background: #ff4d6a10; color: var(--danger);  border: 1px solid #ff4d6a30; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="max-width:620px;">
+
+  <div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a>
+    <span class="sep">›</span>
+    <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+    <span class="sep">›</span>
+    <span class="cur">Editar produto</span>
+  </div>
+
+  <h1 style="margin-bottom:1.75rem;">Editar produto</h1>
+
+  <form action="/stores/{{ store.id }}/products/{{ product.id }}/edit"
+        method="post" enctype="multipart/form-data">
+
+    <!-- ── Imagem ── -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="section-title">Imagem</div>
+
+      {% if product.image %}
+      <div class="img-preview-wrap" id="currentImgWrap">
+        <img src="{{ product.image }}" alt="{{ product.name }}" id="currentImg" />
+        <button type="button" class="remove-img" onclick="removeCurrentImg()">✕</button>
+      </div>
+      <p class="form-hint" style="margin-top:0.4rem;">
+        {% if product.image_path %}Upload local{% else %}URL externa{% endif %} · clique no ✕ para remover
+      </p>
+      {% endif %}
+
+      <div class="drop-zone {% if product.image %}{% endif %}" id="dropZone"
+           style="{{ 'margin-top:0.75rem;' if product.image else '' }}">
+        <input type="file" name="image_file" id="imageFile"
+               accept=".jpg,.jpeg,.png,.webp" onchange="previewFile(this)" />
+        <span class="dz-icon">🖼️</span>
+        <span class="dz-label">Arraste ou clique para trocar imagem</span>
+        <span class="dz-hint">JPG, PNG, WEBP · máx 5 MB</span>
+      </div>
+      <div class="img-preview-wrap" id="newImgPreviewWrap" style="display:none;">
+        <img id="newImgPreviewImg" src="" alt="preview" />
+        <button type="button" class="remove-img" onclick="removeNewImg()">✕</button>
+      </div>
+
+      <div class="form-group" style="margin-top:0.85rem;margin-bottom:0;">
+        <label>ou cole uma URL de imagem</label>
+        <input type="url" name="image_url" id="imageUrl"
+               value="{{ product.image_url or '' }}" placeholder="https://..." />
+      </div>
+    </div>
+
+    <!-- ── Info ── -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="section-title">Informações do produto</div>
+
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="name" value="{{ product.name }}" required maxlength="200" />
+      </div>
+
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea name="description" rows="3">{{ product.description or '' }}</textarea>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Preço *</label>
+          <div class="price-wrap">
+            <span class="cur">R$</span>
+            <input type="text" name="price"
+                   value="{{ '%.2f'|format(product.price|float) }}" required />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>SKU</label>
+          <input type="text" name="sku" value="{{ product.sku or '' }}"
+                 placeholder="Ex: CAM-001" />
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Estoque & Categoria ── -->
+    <div class="card" style="margin-bottom:1.25rem;">
+      <div class="section-title">Estoque & Categoria</div>
+
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Quantidade em estoque</label>
+          <input type="number" name="stock_quantity" id="stockInput"
+                 value="{{ product.effective_stock }}" min="0"
+                 oninput="updateStockStatus(this.value)" />
+          {% set stk = product.effective_stock %}
+          <div class="stock-status {% if stk == 0 %}stock-zero{% elif stk <= 5 %}stock-low{% else %}stock-ok{% endif %}"
+               id="stockStatus">
+            {% if stk == 0 %}❌ Sem estoque
+            {% elif stk <= 5 %}⚠️ Estoque baixo ({{ stk }} un)
+            {% else %}✅ Em estoque ({{ stk }} un)
+            {% endif %}
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Categoria</label>
+          <select name="category_id">
+            <option value="">Sem categoria</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}"
+              {% if product.category_id == cat.id %}selected{% endif %}>
+              {{ cat.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Status & Submit ── -->
+    <div class="form-group">
+      <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+        <input type="checkbox" name="is_active"
+               {% if product.is_active %}checked{% endif %} style="width:auto;" />
+        Produto ativo (visível na loja)
+      </label>
+    </div>
+
+    <div class="flex gap-1">
+      <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center;">
+        Salvar alterações
+      </button>
+      <a href="/stores/{{ store.id }}/products" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+
+  <!-- Danger zone -->
+  <div class="danger-zone">
+    <h3>Remover produto</h3>
+    <p class="text-muted" style="font-size:0.85rem;margin-bottom:1rem;">
+      Esta ação é permanente e não pode ser desfeita.
+    </p>
+    <form action="/stores/{{ store.id }}/products/{{ product.id }}/delete"
+          method="post"
+          onsubmit="return confirm('Remover {{ product.name }} permanentemente?')">
+      <button type="submit" class="btn btn-danger btn-sm">Remover produto</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  /* ── Upload preview ── */
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) { document.getElementById('imageFile').files = e.dataTransfer.files; showPreview(file); }
+  });
+
+  function previewFile(input) { if (input.files[0]) showPreview(input.files[0]); }
+  function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('newImgPreviewImg').src = ev.target.result;
+      document.getElementById('newImgPreviewWrap').style.display = 'block';
+      dz.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeNewImg() {
+    document.getElementById('imageFile').value = '';
+    document.getElementById('newImgPreviewWrap').style.display = 'none';
+    dz.style.display = 'block';
+  }
+  function removeCurrentImg() {
+    document.getElementById('currentImgWrap').style.display = 'none';
+    document.getElementById('imageUrl').value = '';
+  }
+
+  /* ── Stock status ── */
+  function updateStockStatus(val) {
+    const el = document.getElementById('stockStatus');
+    const n = parseInt(val) || 0;
+    el.className = 'stock-status';
+    if (n === 0)     { el.className += ' stock-zero'; el.textContent = '❌ Sem estoque'; }
+    else if (n <= 5) { el.className += ' stock-low';  el.textContent = `⚠️ Estoque baixo (${n} un)`; }
+    else             { el.className += ' stock-ok';   el.textContent = `✅ Em estoque (${n} un)`; }
+  }
+</script>
+{% endblock %}

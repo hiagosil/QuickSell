@@ -1,0 +1,466 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'products' %}
+
+{% block title %}Produtos — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .page-header {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 1rem;
+    margin-bottom: 1.75rem; flex-wrap: wrap;
+  }
+  .stock-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .stock-bar {
+    height: 5px; border-radius: 99px;
+    background: var(--surface3); flex: 1; min-width: 48px; overflow: hidden;
+  }
+  .stock-bar-fill {
+    height: 100%; border-radius: 99px; transition: width 0.3s;
+    background: var(--accent2);
+  }
+  .stock-bar-fill.low { background: var(--warning); }
+  .stock-bar-fill.out { background: var(--danger);  }
+
+  /* ── Products Table ── */
+  .prod-table { width: 100%; border-collapse: collapse; }
+  .prod-table th {
+    text-align: left; padding: 0.6rem 1rem;
+    font-size: 0.7rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .prod-table td {
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    font-size: 0.88rem;
+  }
+  .prod-table tr:last-child td { border-bottom: none; }
+  .prod-table tr:hover td { background: var(--surface2); }
+
+  .prod-thumb {
+    width: 44px; height: 44px; border-radius: 8px;
+    object-fit: cover; background: var(--surface3);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted); font-size: 1.1rem; flex-shrink: 0;
+    overflow: hidden;
+  }
+  .prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
+
+  .prod-name { font-weight: 500; color: var(--text); }
+  .prod-sku  { font-size: 0.74rem; color: var(--muted); font-family: monospace; margin-top: 0.1rem; }
+
+  .inline-stock-form {
+    display: flex; align-items: center; gap: 0.35rem;
+  }
+  .inline-stock-form input {
+    width: 60px; padding: 0.3rem 0.5rem;
+    font-size: 0.82rem; border-radius: 6px;
+    text-align: center;
+  }
+
+  /* ── Drop zone (New Product Form) ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: var(--surface2);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--accent);
+    background: #7c5cfc08;
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0;
+    cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-zone .dz-icon { font-size: 1.6rem; display: block; margin-bottom: 0.4rem; }
+  .drop-zone .dz-label { font-size: 0.82rem; color: var(--muted); }
+  .drop-zone .dz-hint  { font-size: 0.72rem; color: var(--muted); margin-top: 0.25rem; }
+  .img-preview-wrap {
+    display: none; position: relative;
+    width: 100%; border-radius: 8px; overflow: hidden;
+    border: 1px solid var(--border); margin-top: 0.5rem;
+    max-height: 120px;
+  }
+  .img-preview-wrap img { width: 100%; height: 120px; object-fit: cover; display: block; }
+  .img-preview-wrap .remove-img {
+    position: absolute; top: 0.4rem; right: 0.4rem;
+    background: rgba(0,0,0,0.7); color: #fff;
+    border: none; border-radius: 50%;
+    width: 22px; height: 22px; cursor: pointer;
+    font-size: 0.7rem; display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Stats row ── */
+  .stat-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 1rem; margin-bottom: 2rem;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1rem 1.25rem;
+  }
+  .stat-card .stat-val { font-family: var(--font-display); font-weight: 800; font-size: 1.5rem; line-height: 1.1; }
+  .stat-card .stat-lbl { font-size: 0.74rem; color: var(--muted); margin-top: 0.2rem; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.65); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2rem;
+    width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 8px;
+    width: 32px; height: 32px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+  }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .price-wrap { position: relative; }
+  .price-wrap .cur { position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 0.82rem; pointer-events: none; }
+  .price-wrap input { padding-left: 2.1rem; }
+
+  .filter-bar {
+    display: flex; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 1.25rem;
+    align-items: center;
+  }
+  .filter-bar input, .filter-bar select {
+    width: auto; padding: 0.45rem 0.85rem;
+    font-size: 0.84rem; border-radius: 8px;
+  }
+  .filter-bar input { min-width: 180px; flex: 1; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="sep">›</span>
+      <span class="cur">{{ store.name }} — Produtos</span>
+    </div>
+    <h1>Produtos</h1>
+    <p class="text-muted" style="margin-top:0.25rem;font-size:0.88rem;">
+      {{ products|length }} produto{% if products|length != 1 %}s{% endif %} cadastrados
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="openModal()">＋ Novo produto</button>
+</div>
+
+<!-- Stats -->
+{% set total = products|length %}
+{% set active_count = products|selectattr('is_active')|list|length %}
+{% set out_of_stock = products|selectattr('effective_stock', 'equalto', 0)|list|length %}
+{% set low_stock = [] %}
+{% for p in products %}{% if p.effective_stock > 0 and p.effective_stock <= 5 %}{% if low_stock.append(p) %}{% endif %}{% endif %}{% endfor %}
+
+<div class="stat-row">
+  <div class="stat-card">
+    <div class="stat-val">{{ total }}</div>
+    <div class="stat-lbl">Total de produtos</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--accent2);">{{ active_count }}</div>
+    <div class="stat-lbl">Ativos</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--warning);">{{ low_stock|length }}</div>
+    <div class="stat-lbl">Estoque baixo (&le;5)</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--danger);">{{ out_of_stock }}</div>
+    <div class="stat-lbl">Sem estoque</div>
+  </div>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <input type="text" id="searchInput" placeholder="🔍  Buscar produto..." oninput="filterProducts()" />
+  <select id="filterCat" onchange="filterProducts()">
+    <option value="">Todas categorias</option>
+    {% for cat in categories %}
+    <option value="{{ cat.id }}">{{ cat.name }}</option>
+    {% endfor %}
+  </select>
+  <select id="filterStock" onchange="filterProducts()">
+    <option value="">Todos status</option>
+    <option value="in">Em estoque</option>
+    <option value="low">Estoque baixo</option>
+    <option value="out">Sem estoque</option>
+  </select>
+</div>
+
+<!-- Products table -->
+{% if products %}
+<div class="card" style="padding:0; overflow:hidden;">
+  <table class="prod-table" id="prodTable">
+    <thead>
+      <tr>
+        <th style="width:52px;"></th>
+        <th>Produto</th>
+        <th>Categoria</th>
+        <th>Preço</th>
+        <th>Estoque</th>
+        <th>Status</th>
+        <th style="text-align:right;">Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for product in products %}
+      <tr class="prod-row"
+          data-name="{{ product.name|lower }}"
+          data-cat="{{ product.category_id or '' }}"
+          data-stock="{{ product.effective_stock }}">
+        <td style="padding:0.75rem 0.75rem 0.75rem 1rem;">
+          <div class="prod-thumb">
+            {% if product.image %}
+              <img src="{{ product.image }}" alt="{{ product.name }}" />
+            {% else %}
+              📦
+            {% endif %}
+          </div>
+        </td>
+        <td>
+          <div class="prod-name">{{ product.name }}</div>
+          {% if product.sku %}
+          <div class="prod-sku">SKU: {{ product.sku }}</div>
+          {% endif %}
+        </td>
+        <td>
+          {% if product.category %}
+            <span class="badge badge-purple">{{ product.category.name }}</span>
+          {% else %}
+            <span class="text-muted" style="font-size:0.8rem;">—</span>
+          {% endif %}
+        </td>
+        <td style="font-weight:600;font-family:var(--font-display);">
+          R$ {{ '%.2f'|format(product.price|float) }}
+        </td>
+        <td style="min-width:160px;">
+          {% set stk = product.effective_stock %}
+          <div class="stock-bar-wrap">
+            <form action="/stores/{{ store.id }}/products/{{ product.id }}/stock" method="post"
+                  class="inline-stock-form">
+              <input type="number" name="quantity" value="{{ stk }}" min="0" max="9999"
+                     title="Alterar estoque"
+                     onchange="this.form.submit()" />
+            </form>
+            {% if stk == 0 %}
+              <span class="badge badge-danger" style="font-size:0.67rem;">Esgotado</span>
+            {% elif stk <= 5 %}
+              <span class="badge badge-warning" style="font-size:0.67rem;">Baixo</span>
+            {% else %}
+              <span class="badge badge-success" style="font-size:0.67rem;">OK</span>
+            {% endif %}
+          </div>
+          <div class="stock-bar" style="margin-top:0.35rem;max-width:120px;">
+            {% set pct = [stk / 50 * 100, 100]|min %}
+            <div class="stock-bar-fill {% if stk == 0 %}out{% elif stk <= 5 %}low{% endif %}"
+                 style="width:{{ pct }}%;"></div>
+          </div>
+        </td>
+        <td>
+          {% if product.is_active %}
+            <span class="badge badge-success">Ativo</span>
+          {% else %}
+            <span class="badge">Inativo</span>
+          {% endif %}
+        </td>
+        <td style="text-align:right; white-space:nowrap;">
+          <a href="/stores/{{ store.id }}/products/{{ product.id }}/edit"
+             class="btn btn-ghost btn-xs">✏️ Editar</a>
+          <form action="/stores/{{ store.id }}/products/{{ product.id }}/toggle"
+                method="post" style="display:inline;">
+            <button type="submit" class="btn btn-ghost btn-xs">
+              {% if product.is_active %}⏸{% else %}▶{% endif %}
+            </button>
+          </form>
+          <form action="/stores/{{ store.id }}/products/{{ product.id }}/delete"
+                method="post" style="display:inline;"
+                onsubmit="return confirm('Remover {{ product.name }}?')">
+            <button type="submit" class="btn btn-xs" style="background:transparent;border:1px solid var(--border);color:var(--danger);">🗑</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div id="noResults" style="display:none;" class="empty-state" style="margin-top:1rem;">
+  <span class="empty-icon">🔍</span>
+  <h3>Nenhum produto encontrado</h3>
+  <p>Tente ajustar os filtros.</p>
+</div>
+{% else %}
+<div class="empty-state">
+  <span class="empty-icon">📦</span>
+  <h3>Nenhum produto ainda</h3>
+  <p>Adicione o primeiro produto da sua loja.</p>
+  <button class="btn btn-primary" onclick="openModal()">＋ Adicionar produto</button>
+</div>
+{% endif %}
+
+<!-- ═══ MODAL: Novo Produto ═══ -->
+<div class="modal-overlay" id="newProdModal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 style="margin-bottom:1.5rem;">Novo produto</h2>
+
+    <form action="/stores/{{ store.id }}/products/new" method="post"
+          enctype="multipart/form-data">
+
+      <!-- Imagem drag & drop -->
+      <div class="form-group">
+        <label>Imagem do produto</label>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" name="image_file" id="imageFile"
+                 accept=".jpg,.jpeg,.png,.webp"
+                 onchange="previewFile(this)" />
+          <span class="dz-icon">🖼️</span>
+          <span class="dz-label">Arraste aqui ou clique para selecionar</span>
+          <span class="dz-hint">JPG, PNG ou WEBP · Máx. 5 MB</span>
+        </div>
+        <div class="img-preview-wrap" id="imgPreviewWrap">
+          <img id="imgPreviewImg" src="" alt="preview" />
+          <button type="button" class="remove-img" onclick="removeImg()">✕</button>
+        </div>
+        <div class="form-group" style="margin-top:0.75rem;margin-bottom:0;">
+          <label>ou cole uma URL de imagem</label>
+          <input type="url" name="image_url" placeholder="https://..." />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="name" required maxlength="200" placeholder="Ex: Camiseta Premium" />
+      </div>
+
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea name="description" rows="2" placeholder="Descreva o produto..."></textarea>
+      </div>
+
+      <div class="grid-2">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Preço *</label>
+          <div class="price-wrap">
+            <span class="cur">R$</span>
+            <input type="text" name="price" required placeholder="0,00" />
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Estoque</label>
+          <input type="number" name="stock_quantity" value="0" min="0" />
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label>SKU</label>
+          <input type="text" name="sku" placeholder="Ex: CAM-001" />
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label>Categoria</label>
+          <select name="category_id">
+            <option value="">Sem categoria</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-top:1rem;">
+        <label style="text-transform:none;letter-spacing:0;display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+          <input type="checkbox" name="is_active" checked style="width:auto;" />
+          Produto ativo (visível na loja)
+        </label>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-full" style="margin-top:0.5rem;">
+        Salvar produto
+      </button>
+    </form>
+  </div>
+</div>
+
+<script>
+  /* ── Modal ── */
+  function openModal()  { document.getElementById('newProdModal').classList.add('open'); }
+  function closeModal() { document.getElementById('newProdModal').classList.remove('open'); }
+  document.addEventListener('keydown', e => { if(e.key==='Escape') closeModal(); });
+
+  /* ── Drag & Drop ── */
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      document.getElementById('imageFile').files = e.dataTransfer.files;
+      showPreview(file);
+    }
+  });
+
+  function previewFile(input) {
+    if (input.files && input.files[0]) showPreview(input.files[0]);
+  }
+  function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      document.getElementById('imgPreviewImg').src = ev.target.result;
+      document.getElementById('imgPreviewWrap').style.display = 'block';
+      dz.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeImg() {
+    document.getElementById('imageFile').value = '';
+    document.getElementById('imgPreviewWrap').style.display = 'none';
+    dz.style.display = 'block';
+  }
+
+  /* ── Filter ── */
+  function filterProducts() {
+    const q   = document.getElementById('searchInput').value.toLowerCase();
+    const cat = document.getElementById('filterCat').value;
+    const stk = document.getElementById('filterStock').value;
+    const rows = document.querySelectorAll('.prod-row');
+    let visible = 0;
+    rows.forEach(r => {
+      const nameMatch  = r.dataset.name.includes(q);
+      const catMatch   = !cat || r.dataset.cat === cat;
+      const stockVal   = parseInt(r.dataset.stock);
+      let stockMatch   = true;
+      if (stk === 'in')  stockMatch = stockVal > 5;
+      if (stk === 'low') stockMatch = stockVal > 0 && stockVal <= 5;
+      if (stk === 'out') stockMatch = stockVal === 0;
+      const show = nameMatch && catMatch && stockMatch;
+      r.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    document.getElementById('noResults').style.display = visible === 0 ? 'block' : 'none';
+  }
+</script>
+{% endblock %}

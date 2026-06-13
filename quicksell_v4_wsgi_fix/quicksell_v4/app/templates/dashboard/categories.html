@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% set show_sidebar = true %}
+{% set active_page  = 'categories' %}
+
+{% block title %}Categorias — {{ store.name }} — QuickSell{% endblock %}
+
+{% block head %}
+<style>
+  .cat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .cat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 1rem;
+    transition: border-color 0.15s;
+  }
+  .cat-card:hover { border-color: var(--accent); }
+  .cat-info { flex: 1; min-width: 0; }
+  .cat-name { font-weight: 600; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-slug { font-size: 0.73rem; color: var(--muted); font-family: monospace; margin-top: 0.15rem; }
+  .cat-count { font-size: 0.78rem; color: var(--muted); margin-top: 0.35rem; }
+  .cat-actions { display: flex; gap: 0.35rem; flex-shrink: 0; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.6); backdrop-filter: blur(2px);
+    align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 2rem;
+    width: 100%; max-width: 420px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 1rem; right: 1rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); border-radius: 8px;
+    width: 32px; height: 32px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="sep">›</span>
+      <a href="/stores/{{ store.id }}/products">{{ store.name }}</a>
+      <span class="sep">›</span>
+      <span class="cur">Categorias</span>
+    </div>
+    <h1>Categorias</h1>
+    <p class="text-muted" style="margin-top:0.25rem;font-size:0.88rem;">
+      {{ categories|length }} categoria{% if categories|length != 1 %}s{% endif %} criada{% if categories|length != 1 %}s{% endif %}
+    </p>
+  </div>
+  <button class="btn btn-primary" onclick="document.getElementById('newCatModal').classList.add('open')">
+    ＋ Nova categoria
+  </button>
+</div>
+
+{% if categories %}
+<div class="cat-grid">
+  {% for cat in categories %}
+  <div class="cat-card">
+    <div class="cat-info">
+      <div class="cat-name">{{ cat.name }}</div>
+      <div class="cat-slug">/{{ cat.slug }}</div>
+      <div class="cat-count">
+        {% set cnt = cat.product_count() %}
+        {{ cnt }} produto{% if cnt != 1 %}s{% endif %}
+      </div>
+    </div>
+    <div class="cat-actions">
+      <button class="btn btn-ghost btn-xs"
+              onclick="openEdit({{ cat.id }}, '{{ cat.name }}')">✏️</button>
+      <form action="/stores/{{ store.id }}/categories/{{ cat.id }}/delete"
+            method="post"
+            onsubmit="return confirm('Remover categoria \'{{ cat.name }}\'? Os produtos ficarão sem categoria.')">
+        <button type="submit" class="btn btn-xs"
+                style="background:transparent;border:1px solid var(--border);color:var(--danger);">🗑</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state" style="margin-top:1.5rem;">
+  <span class="empty-icon">🏷️</span>
+  <h3>Sem categorias ainda</h3>
+  <p>Organize seus produtos em categorias para facilitar a navegação na loja.</p>
+  <button class="btn btn-primary"
+          onclick="document.getElementById('newCatModal').classList.add('open')">
+    ＋ Criar primeira categoria
+  </button>
+</div>
+{% endif %}
+
+<!-- Modal: Nova categoria -->
+<div class="modal-overlay" id="newCatModal"
+     onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <button class="modal-close"
+            onclick="document.getElementById('newCatModal').classList.remove('open')">✕</button>
+    <h2 style="margin-bottom:1.25rem;">Nova categoria</h2>
+    <form action="/stores/{{ store.id }}/categories/new" method="post">
+      <div class="form-group">
+        <label>Nome da categoria *</label>
+        <input type="text" name="name" required maxlength="120"
+               placeholder="Ex: Roupas, Eletrônicos, Acessórios..." autofocus />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Criar categoria</button>
+    </form>
+  </div>
+</div>
+
+<!-- Modal: Editar categoria -->
+<div class="modal-overlay" id="editCatModal"
+     onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <button class="modal-close"
+            onclick="document.getElementById('editCatModal').classList.remove('open')">✕</button>
+    <h2 style="margin-bottom:1.25rem;">Editar categoria</h2>
+    <form id="editCatForm" method="post">
+      <div class="form-group">
+        <label>Nome *</label>
+        <input type="text" name="name" id="editCatName" required maxlength="120" />
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">Salvar alterações</button>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openEdit(id, name) {
+    document.getElementById('editCatName').value = name;
+    document.getElementById('editCatForm').action =
+      '/stores/{{ store.id }}/categories/' + id + '/edit';
+    document.getElementById('editCatModal').classList.add('open');
+    setTimeout(() => document.getElementById('editCatName').focus(), 100);
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('open'));
+    }
+  });
+</script>
+{% endblock %}

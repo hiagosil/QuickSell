@@ -1,0 +1,168 @@
+{% from "store/_store_shared.html" import cart_styles, cart_js %}
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carrinho — {{ store.name }}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  {{ cart_styles() }}
+  <style>
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    :root { --accent:{{ store.primary_color }};--bg:#fff;--surface:#f7f7f7;--border:#e8e8e8;--text:#111;--muted:#888;--radius:12px; }
+    body { font-family:'Inter',sans-serif; background:var(--bg); color:var(--text); font-size:15px; line-height:1.6; }
+    a { color:var(--accent); text-decoration:none; }
+    header { height:64px; padding:0 clamp(1rem,4vw,2.5rem); display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--border); position:sticky; top:0; background:rgba(255,255,255,.92); backdrop-filter:blur(12px); z-index:100; }
+    .logo { font-size:1.1rem; font-weight:800; letter-spacing:-.5px; color:var(--text); }
+    .logo-dot { color:var(--accent); }
+    main { max-width:900px; margin:0 auto; padding:2.5rem clamp(1rem,4vw,2.5rem) 5rem; }
+    h1 { font-size:1.6rem; font-weight:800; margin-bottom:2rem; }
+    .cart-grid { display:grid; grid-template-columns:1fr 320px; gap:2rem; }
+    @media(max-width:700px) { .cart-grid { grid-template-columns:1fr; } }
+
+    /* Items */
+    .cart-items-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .cart-item-row { display:flex; align-items:center; gap:1rem; padding:1rem 1.25rem; border-bottom:1px solid var(--border); }
+    .cart-item-row:last-child { border-bottom:none; }
+    .ci-img { width:58px; height:58px; border-radius:8px; background:#eee; border:1px solid var(--border); object-fit:cover; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.3rem; overflow:hidden; }
+    .ci-img img { width:100%; height:100%; object-fit:cover; }
+    .ci-info { flex:1; min-width:0; }
+    .ci-name { font-weight:600; font-size:.92rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .ci-sku  { font-size:.72rem; color:var(--muted); font-family:monospace; }
+    .ci-price { font-size:.88rem; color:var(--accent); font-weight:600; margin-top:.15rem; }
+    .ci-controls { display:flex; align-items:center; gap:.4rem; flex-shrink:0; }
+    .ci-qty-btn { width:28px; height:28px; border-radius:6px; border:1px solid var(--border); background:var(--bg); cursor:pointer; font-size:.95rem; transition:all .12s; }
+    .ci-qty-btn:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+    .ci-qty-val { width:32px; text-align:center; font-weight:600; font-size:.9rem; }
+    .ci-remove { background:none; border:none; cursor:pointer; color:var(--muted); font-size:.85rem; padding:.2rem .35rem; border-radius:5px; transition:color .15s,background .15s; }
+    .ci-remove:hover { color:#ef4444; background:#fee2e2; }
+    .ci-line { font-size:.9rem; font-weight:700; min-width:72px; text-align:right; flex-shrink:0; }
+
+    /* Summary */
+    .summary-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; align-self:start; position:sticky; top:80px; }
+    .summary-box h2 { font-size:1rem; font-weight:700; margin-bottom:1.25rem; }
+    .summary-row { display:flex; justify-content:space-between; font-size:.9rem; margin-bottom:.65rem; color:var(--muted); }
+    .summary-total { display:flex; justify-content:space-between; font-size:1.1rem; font-weight:800; border-top:1px solid var(--border); margin-top:.75rem; padding-top:.75rem; }
+    .shipping-free { color:#16a34a; font-weight:600; }
+    .free-bar { margin:.6rem 0; }
+    .free-bar-bg { height:4px; background:var(--border); border-radius:99px; overflow:hidden; margin-bottom:.3rem; }
+    .free-bar-fill { height:100%; background:#16a34a; border-radius:99px; }
+    .free-bar-label { font-size:.72rem; color:var(--muted); }
+    .btn-checkout-main { display:block; text-align:center; background:var(--accent); color:#fff; padding:.9rem; border-radius:10px; font-weight:700; font-size:.95rem; margin-top:1.25rem; transition:opacity .15s; }
+    .btn-checkout-main:hover { opacity:.88; color:#fff; }
+    .btn-back { display:block; text-align:center; font-size:.82rem; color:var(--muted); margin-top:.75rem; }
+    .btn-back:hover { color:var(--text); }
+
+    .empty-cart { text-align:center; padding:4rem 2rem; }
+    .empty-cart span { font-size:2.5rem; display:block; margin-bottom:1rem; }
+    .empty-cart p { color:var(--muted); margin-bottom:1.5rem; }
+    .btn-shop { display:inline-block; background:var(--accent); color:#fff; padding:.7rem 1.75rem; border-radius:8px; font-weight:600; }
+  </style>
+</head>
+<body>
+<header>
+  <a class="logo" href="/store/{{ store.slug }}">{{ store.name.split()[0] }}<span class="logo-dot">{% if store.name.split()|length > 1 %} {{ store.name.split()[1:]|join(' ') }}{% endif %}</span></a>
+  <div style="font-size:.84rem;color:var(--muted);">
+    <a href="/store/{{ store.slug }}" style="color:var(--muted);">← Continuar comprando</a>
+  </div>
+</header>
+
+<main>
+  <h1>Meu carrinho</h1>
+
+  {% if summary.items %}
+  <div class="cart-grid">
+    <!-- Items -->
+    <div>
+      <div class="cart-items-box">
+        {% for item in summary.items %}
+        <div class="cart-item-row" id="row-{{ item.product_id }}">
+          <div class="ci-img">
+            {% if item.image %}<img src="{{ item.image }}" alt="{{ item.name }}" />
+            {% else %}📦{% endif %}
+          </div>
+          <div class="ci-info">
+            <div class="ci-name">{{ item.name }}</div>
+            {% if item.sku %}<div class="ci-sku">{{ item.sku }}</div>{% endif %}
+            <div class="ci-price">R$ {{ '%.2f'|format(item.price) }}</div>
+          </div>
+          <div class="ci-controls">
+            <button class="ci-qty-btn" onclick="changeQty({{ item.product_id }}, {{ item.qty - 1 }})">−</button>
+            <span class="ci-qty-val" id="qty-{{ item.product_id }}">{{ item.qty }}</span>
+            <button class="ci-qty-btn" onclick="changeQty({{ item.product_id }}, {{ item.qty + 1 }})">+</button>
+            <button class="ci-remove" onclick="removeItem({{ item.product_id }})" title="Remover">🗑</button>
+          </div>
+          <div class="ci-line" id="line-{{ item.product_id }}">R$ {{ '%.2f'|format(item.line_total) }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div>
+      <div class="summary-box">
+        <h2>Resumo do pedido</h2>
+        <div class="summary-row"><span>Subtotal</span><span id="pg-subtotal">R$ {{ '%.2f'|format(summary.subtotal) }}</span></div>
+        <div class="summary-row">
+          <span>Frete</span>
+          <span id="pg-shipping">
+            {% if summary.shipping == 0 %}<span class="shipping-free">Grátis 🎉</span>
+            {% else %}R$ {{ '%.2f'|format(summary.shipping) }}{% endif %}
+          </span>
+        </div>
+        {% if summary.subtotal < 150 and summary.subtotal > 0 %}
+        <div class="free-bar">
+          <div class="free-bar-bg"><div class="free-bar-fill" id="pg-fbar" style="width:{{ [summary.subtotal/150*100,100]|min|int }}%"></div></div>
+          <div class="free-bar-label" id="pg-fbar-label">Faltam R$ {{ '%.2f'|format(150-summary.subtotal) }} para frete grátis</div>
+        </div>
+        {% endif %}
+        <div class="summary-total"><span>Total</span><span id="pg-total">R$ {{ '%.2f'|format(summary.total) }}</span></div>
+        <a href="/store/{{ store.slug }}/checkout" class="btn-checkout-main">Finalizar pedido →</a>
+        <a href="/store/{{ store.slug }}" class="btn-back">← Continuar comprando</a>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="empty-cart">
+    <span>🛒</span>
+    <p>Seu carrinho está vazio.</p>
+    <a href="/store/{{ store.slug }}" class="btn-shop">Ver produtos</a>
+  </div>
+  {% endif %}
+</main>
+
+{{ cart_js(store.slug) }}
+<script>
+/* Override updateTotals to also update page-level elements */
+const _origUpdateTotals = updateTotals;
+function updateTotals(data) {
+  _origUpdateTotals(data);
+  const fmt = v => 'R$ ' + parseFloat(v).toFixed(2).replace('.', ',');
+  const sub = document.getElementById('pg-subtotal');
+  const shp = document.getElementById('pg-shipping');
+  const tot = document.getElementById('pg-total');
+  if (sub) sub.textContent = fmt(data.subtotal);
+  if (shp) shp.innerHTML = data.shipping == 0
+    ? '<span class="shipping-free">Grátis 🎉</span>' : fmt(data.shipping);
+  if (tot) tot.textContent = fmt(data.total);
+}
+/* Remove row from page on remove */
+const _origRemoveItem = removeItem;
+function removeItem(pid) {
+  const row = document.getElementById('row-' + pid);
+  if (row) row.style.opacity = '0.4';
+  _origRemoveItem(pid);
+}
+/* Update qty val and line total */
+const _origChangeQty = changeQty;
+function changeQty(pid, qty) {
+  _origChangeQty(pid, qty);
+  if (qty <= 0) {
+    const row = document.getElementById('row-' + pid);
+    if (row) setTimeout(() => row.remove(), 300);
+  }
+}
+</script>
+</body>
+</html>

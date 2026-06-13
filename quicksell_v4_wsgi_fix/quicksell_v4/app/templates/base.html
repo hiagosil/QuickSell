@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}QuickSell{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#09090f; --surface:#111118; --surface2:#18181f; --surface3:#21212b;
+      --border:#2a2a3a; --accent:#7c5cfc; --accent2:#00e5a0; --text:#e8e8f0;
+      --muted:#5c5c72; --danger:#ff4d6a; --warning:#f59e0b; --radius:12px;
+      --font-display:'Syne',sans-serif; --font-body:'DM Sans',sans-serif;
+      --sidebar-w:220px; --nav-h:60px;
+    }
+    body { background:var(--bg); color:var(--text); font-family:var(--font-body); font-size:15px; line-height:1.6; min-height:100vh; }
+    nav.topnav { display:flex; align-items:center; justify-content:space-between; padding:0 1.5rem; height:var(--nav-h); background:var(--surface); border-bottom:1px solid var(--border); position:fixed; top:0; left:0; right:0; z-index:200; }
+    .nav-logo { font-family:var(--font-display); font-weight:800; font-size:1.15rem; color:var(--text); text-decoration:none; letter-spacing:-0.5px; }
+    .nav-logo span { color:var(--accent2); }
+    .nav-links { display:flex; align-items:center; gap:0.4rem; }
+    .nav-links a, .nav-links form button { color:var(--muted); text-decoration:none; font-size:0.85rem; padding:0.4rem 0.85rem; border-radius:8px; transition:all 0.15s; background:none; border:none; cursor:pointer; font-family:var(--font-body); }
+    .nav-links a:hover, .nav-links form button:hover { color:var(--text); background:var(--surface2); }
+    .nav-links .btn-nav { background:var(--accent); color:#fff !important; }
+    .nav-links .btn-nav:hover { opacity:0.88; }
+    .layout-with-sidebar { display:flex; padding-top:var(--nav-h); min-height:100vh; }
+    .layout-no-sidebar { padding-top:var(--nav-h); }
+    .sidebar { width:var(--sidebar-w); background:var(--surface); border-right:1px solid var(--border); position:fixed; top:var(--nav-h); bottom:0; left:0; overflow-y:auto; z-index:100; padding:1.25rem 0.75rem; display:flex; flex-direction:column; gap:0.25rem; }
+    .sidebar-section { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); padding:0.75rem 0.6rem 0.35rem; margin-top:0.5rem; }
+    .sidebar a { display:flex; align-items:center; gap:0.65rem; padding:0.55rem 0.75rem; border-radius:8px; color:var(--muted); text-decoration:none; font-size:0.875rem; transition:all 0.15s; }
+    .sidebar a:hover { color:var(--text); background:var(--surface2); }
+    .sidebar a.active { color:var(--text); background:var(--surface3); }
+    .sidebar a .icon { font-size:1rem; width:18px; text-align:center; flex-shrink:0; }
+    .layout-with-sidebar .main-content { flex:1; margin-left:var(--sidebar-w); padding:2rem 2.5rem; min-height:calc(100vh - var(--nav-h)); }
+    .layout-no-sidebar .main-content { padding:0; }
+    .page    { max-width:1100px; margin:0 auto; padding:2.5rem 1.5rem; }
+    .page-sm { max-width:480px;  margin:0 auto; padding:3rem 1.5rem; }
+    .flash { padding:0.75rem 1rem; border-radius:var(--radius); margin-bottom:1.2rem; font-size:0.88rem; display:flex; align-items:center; gap:0.6rem; }
+    .flash-success { background:#00e5a010; border:1px solid #00e5a035; color:var(--accent2); }
+    .flash-error   { background:#ff4d6a10; border:1px solid #ff4d6a35; color:var(--danger); }
+    .flash-info    { background:#7c5cfc10; border:1px solid #7c5cfc35; color:var(--accent); }
+    .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; }
+    label { display:block; font-size:0.78rem; color:var(--muted); margin-bottom:0.4rem; letter-spacing:0.04em; text-transform:uppercase; }
+    input[type=text], input[type=email], input[type=password], input[type=url],
+    input[type=number], select, textarea { width:100%; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); padding:0.7rem 0.9rem; font-family:var(--font-body); font-size:0.92rem; transition:border-color 0.15s; outline:none; }
+    input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+    select option { background:var(--surface2); }
+    .form-group { margin-bottom:1.25rem; }
+    .form-hint  { font-size:0.76rem; color:var(--muted); margin-top:0.35rem; }
+    .btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.65rem 1.4rem; border-radius:8px; font-family:var(--font-body); font-size:0.88rem; font-weight:500; cursor:pointer; border:none; text-decoration:none; transition:all 0.15s; white-space:nowrap; }
+    .btn-primary { background:var(--accent); color:#fff; } .btn-primary:hover { opacity:0.88; }
+    .btn-outline { background:transparent; color:var(--text); border:1px solid var(--border); } .btn-outline:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-danger  { background:var(--danger); color:#fff; } .btn-danger:hover { opacity:0.88; }
+    .btn-ghost   { background:var(--surface2); color:var(--muted); border:1px solid var(--border); } .btn-ghost:hover { color:var(--text); }
+    .btn-sm { padding:0.38rem 0.85rem; font-size:0.8rem; border-radius:7px; }
+    .btn-xs { padding:0.25rem 0.6rem;  font-size:0.74rem; border-radius:6px; }
+    .btn-full { width:100%; justify-content:center; }
+    .badge { font-size:0.7rem; padding:0.22rem 0.6rem; border-radius:99px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; background:var(--surface2); color:var(--muted); border:1px solid var(--border); white-space:nowrap; }
+    .badge-success { background:#00e5a010; color:var(--accent2); border-color:#00e5a030; }
+    .badge-warning { background:#f59e0b10; color:var(--warning); border-color:#f59e0b30; }
+    .badge-danger  { background:#ff4d6a10; color:var(--danger);  border-color:#ff4d6a30; }
+    .badge-purple  { background:#7c5cfc10; color:var(--accent);  border-color:#7c5cfc30; }
+    .badge-info    { background:#3b82f610; color:#3b82f6;        border-color:#3b82f630; }
+    .text-muted { color:var(--muted); } .text-accent { color:var(--accent); }
+    .text-danger { color:var(--danger); } .text-success { color:var(--accent2); }
+    .text-center { text-align:center; } .text-right { text-align:right; }
+    .mt-1 { margin-top:0.5rem; } .mt-2 { margin-top:1rem; } .mt-3 { margin-top:1.5rem; }
+    .mb-1 { margin-bottom:0.5rem; } .mb-2 { margin-bottom:1rem; }
+    .flex { display:flex; } .flex-col { flex-direction:column; }
+    .items-center { align-items:center; } .justify-between { justify-content:space-between; }
+    .flex-wrap { flex-wrap:wrap; }
+    .gap-xs { gap:0.35rem; } .gap-1 { gap:0.5rem; } .gap-2 { gap:1rem; } .gap-3 { gap:1.5rem; }
+    h1 { font-family:var(--font-display); font-weight:800; font-size:1.75rem; letter-spacing:-0.5px; line-height:1.2; }
+    h2 { font-family:var(--font-display); font-weight:700; font-size:1.2rem; }
+    h3 { font-family:var(--font-display); font-weight:600; font-size:1rem; }
+    a  { color:var(--accent); }
+    .breadcrumb { display:flex; align-items:center; gap:0.45rem; font-size:0.8rem; color:var(--muted); margin-bottom:1.5rem; flex-wrap:wrap; }
+    .breadcrumb a { color:var(--muted); text-decoration:none; } .breadcrumb a:hover { color:var(--text); }
+    .breadcrumb .sep { color:var(--border); } .breadcrumb .cur { color:var(--text); }
+    .section-title { font-family:var(--font-display); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--muted); margin-bottom:1rem; padding-bottom:0.5rem; border-bottom:1px solid var(--border); }
+    .empty-state { text-align:center; padding:3.5rem 2rem; border:2px dashed var(--border); border-radius:var(--radius); color:var(--muted); }
+    .empty-state .empty-icon { font-size:2.2rem; display:block; margin-bottom:0.75rem; }
+    .empty-state h3 { color:var(--text); margin-bottom:0.4rem; font-size:1rem; }
+    .empty-state p { font-size:0.87rem; margin-bottom:1.25rem; }
+    @media (max-width:768px) {
+      .sidebar { display:none; }
+      .layout-with-sidebar .main-content { margin-left:0; padding:1.25rem 1rem; }
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+
+<nav class="topnav">
+  <a class="nav-logo" href="/">Quick<span>Sell</span></a>
+  <div class="nav-links">
+    {% if current_user.is_authenticated %}
+      <span style="font-size:0.82rem;color:var(--muted);">{{ current_user.name.split()[0] }}</span>
+      <a href="/dashboard">Dashboard</a>
+      <a href="/create-store" class="btn-nav">+ Nova Loja</a>
+      <form action="/auth/logout" method="post" style="display:inline">
+        <button type="submit">Sair</button>
+      </form>
+    {% else %}
+      <a href="/auth/login">Entrar</a>
+      <a href="/auth/register" class="btn-nav">Começar grátis</a>
+    {% endif %}
+  </div>
+</nav>
+
+{#
+  SOLUÇÃO DO BLOCO DUPLICADO — TÉCNICA "SPLIT WRAPPER":
+  ──────────────────────────────────────────────────────
+  Jinja2 proíbe {% block X %} com o mesmo nome em qualquer posição
+  do template pai, incluindo ramos if/else. O parser varre tudo antes
+  de avaliar condicionais.
+
+  A solução é dividir o wrapper HTML em duas partes:
+    1. ABERTURA: o if/else abre a div correta e deixa o <main> aberto
+    2. BLOCO:    {% block content %} aparece UMA ÚNICA VEZ, aqui
+    3. FECHAMENTO: o if/else fecha as divs abertas
+
+  O HTML resultante é válido — cada ramo abre e fecha seus próprios
+  elementos de forma consistente dentro da renderização completa.
+#}
+
+{% if current_user.is_authenticated and show_sidebar|default(false) %}
+<div class="layout-with-sidebar">
+  <aside class="sidebar">
+    {% if store is defined and store %}
+      <div style="padding:0.5rem 0.75rem 0.75rem;border-bottom:1px solid var(--border);margin-bottom:0.5rem;">
+        <div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:0.3rem;">Loja atual</div>
+        <div style="font-family:var(--font-display);font-weight:700;font-size:0.95rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ store.name }}</div>
+        <div style="font-size:0.72rem;color:var(--muted);font-family:monospace;">/{{ store.slug }}</div>
+      </div>
+      <div class="sidebar-section">Loja</div>
+      <a href="/stores/{{ store.id }}/products" {% if active_page == 'products' %}class="active"{% endif %}>
+        <span class="icon">📦</span> Produtos
+      </a>
+      <a href="/stores/{{ store.id }}/categories" {% if active_page == 'categories' %}class="active"{% endif %}>
+        <span class="icon">🏷️</span> Categorias
+      </a>
+      <a href="/stores/{{ store.id }}/orders" {% if active_page == 'orders' %}class="active"{% endif %}>
+        <span class="icon">📋</span> Pedidos
+        {% set sidebar_pending_count = store.pending_orders() %}
+        {% if sidebar_pending_count > 0 %}
+          <span style="margin-left:auto;background:var(--danger);color:#fff;font-size:.65rem;font-weight:700;padding:.1rem .45rem;border-radius:99px;">{{ sidebar_pending_count }}</span>
+        {% endif %}
+      </a>
+      <a href="/stores/{{ store.id }}/financeiro" {% if active_page == 'financial' %}class="active"{% endif %}>
+        <span class="icon">💰</span> Financeiro
+      </a>
+      <a href="/stores/{{ store.id }}/settings/mercadopago" {% if active_page == 'mp_settings' %}class="active"{% endif %}>
+        <span class="icon">🏦</span> Mercado Pago
+      </a>
+      <a href="/stores/{{ store.id }}/edit" {% if active_page == 'edit_store' %}class="active"{% endif %}>
+        <span class="icon">⚙️</span> Configurar loja
+      </a>
+      <a href="/store/{{ store.slug }}" target="_blank">
+        <span class="icon">🔗</span> Ver pública
+      </a>
+    {% endif %}
+    <div class="sidebar-section">Conta</div>
+    <a href="/dashboard" {% if active_page == 'dashboard' %}class="active"{% endif %}>
+      <span class="icon">🏠</span> Minhas lojas
+    </a>
+    <a href="/create-store"><span class="icon">＋</span> Nova loja</a>
+  </aside>
+  <main class="main-content">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}{% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+      {% endfor %}{% endif %}
+    {% endwith %}
+{% else %}
+<div class="layout-no-sidebar">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="max-width:1100px;margin:calc(var(--nav-h) + 1rem) auto 0;padding:0 1.5rem;">
+        {% for cat, msg in messages %}<div class="flash flash-{{ cat }}">{{ msg }}</div>{% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  <div class="main-content">
+{% endif %}
+
+{% block content %}{% endblock %}
+
+{% if current_user.is_authenticated and show_sidebar|default(false) %}
+  </main>
+</div>
+{% else %}
+  </div>
+</div>
+{% endif %}
+
+</body>
+</html>
